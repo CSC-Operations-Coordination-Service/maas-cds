@@ -1,0 +1,125 @@
+{
+    "index_patterns": [
+        "maas-config-dataflow*"
+    ],
+    "settings": {
+        "index": {
+            "number_of_shards": 1,
+            "number_of_replicas": 1
+        }
+    },
+    "mappings": {
+        "properties": {
+            "key": {
+                "type": "keyword",
+                "description": "Unique key of the dataflow configuration entry"
+            },
+            "name": {
+                "type": "keyword",
+                "description": "Name of the dataflow configuration"
+            },
+            "version": {
+                "type": "keyword",
+                "description": "Version of the dataflow configuration"
+            },
+            "latest": {
+                "type": "boolean",
+                "description": "Whether this is the latest version of the dataflow configuration"
+            },
+            "metadata": {
+                "type": "object",
+                "properties": {
+                    "createAt": {
+                        "type": "date",
+                        "format": "date_time",
+                        "locale": "utc",
+                        "description": "Creation timestamp of the dataflow configuration"
+                    },
+                    "updateAt": {
+                        "type": "date",
+                        "format": "date_time",
+                        "locale": "utc",
+                        "description": "Last update timestamp of the dataflow configuration"
+                    }
+                },
+                "description": "Metadata of the dataflow configuration"
+            },
+            "records": {
+                "type": "object",
+                "properties": {
+                    "product_type": {
+                        "type": "keyword",
+                        "description": "Product type described by this dataflow record"
+                    },
+                    "product_level": {
+                        "type": "keyword",
+                        "description": "Processing level of the product type"
+                    },
+                    "description": {
+                        "type": "text",
+                        "description": "Human-readable description of the product type"
+                    },
+                    "note": {
+                        "type": "text",
+                        "description": "Free-text note about the dataflow record"
+                    },
+                    "payload": {
+                        "type": "keyword",
+                        "description": "Payload associated with the product type"
+                    },
+                    "mode": {
+                        "type": "keyword",
+                        "description": "Acquisition mode of the product type"
+                    },
+                    "services_config": {
+                        "type": "object",
+                        "properties": {},
+                        "description": "Per-service configuration mapping each service type to the services expected to publish the product type"
+                    },
+                    "STB": {
+                        "type": "object",
+                        "properties": {
+                            "stb_timeliness": {
+                                "type": "keyword",
+                                "description": "Standard timeliness budget target for the product type"
+                            },
+                            "real_timeliness": {
+                                "type": "keyword",
+                                "description": "Real observed timeliness for the product type"
+                            },
+                            "num_products_per_day": {
+                                "type": "float",
+                                "description": "Expected number of products per day"
+                            },
+                            "volume_per_day": {
+                                "type": "float",
+                                "description": "Expected data volume per day"
+                            }
+                        },
+                        "description": "Standard timeliness budget (STB) configuration for the product type"
+                    },
+                    "AUXIP": {
+                        "type": "object",
+                        "properties": {
+                            "frequency": {
+                                "type": "long",
+                                "description": "Expected production frequency on the AUXIP interface"
+                            },
+                            "provider": {
+                                "type": "keyword",
+                                "description": "Provider of the product on the AUXIP interface"
+                            },
+                            "timeliness": {
+                                "type": "long",
+                                "description": "Expected timeliness on the AUXIP interface"
+                            }
+                        },
+                        "description": "AUXIP interface configuration for the product type"
+                    }
+                },
+                "description": "Dataflow configuration records, one per product type"
+            }
+        },
+        "_meta": {}
+    }
+}

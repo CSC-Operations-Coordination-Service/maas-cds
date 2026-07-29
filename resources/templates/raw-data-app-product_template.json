@@ -1,0 +1,78 @@
+{
+    "aliases": {
+        "raw-data-app-product": {}
+    },
+    "index_patterns": [
+        "raw-data-app-product-*"
+    ],
+    "settings": {
+        "index": {
+            "number_of_shards": 3,
+            "number_of_replicas": 1
+        }
+    },
+    "mappings": {
+        "properties": {
+            "ingestionTime": {
+                "type": "date",
+                "format": "date_time",
+                "locale": "utc",
+                "description": "Timestamp when the collector ingested this record into MAAS"
+            },
+            "reportName": {
+                "type": "keyword",
+                "description": "Name of the source report the record was extracted from"
+            },
+            "reportFolder": {
+                "type": "keyword",
+                "description": "Folder path of the source report file"
+            },
+            "satellite_id": {
+                "type": "keyword",
+                "description": "Identifier of the satellite for the acquisition pass"
+            },
+            "station_id": {
+                "type": "keyword",
+                "description": "Identifier of the ground/acquisition station"
+            },
+            "acquisition_id": {
+                "type": "keyword",
+                "description": "Identifier of the acquisition"
+            },
+            "downlink_orbit": {
+                "type": "keyword",
+                "description": "Orbit number of the X-Band downlink"
+            },
+            "downlink_start_date": {
+                "type": "date",
+                "locale": "utc",
+                "description": "Start date and time of the downlink"
+            },
+            "downlink_stop_date": {
+                "type": "date",
+                "locale": "utc",
+                "description": "Stop date and time of the downlink"
+            },
+            "downlink_duration": {
+                "type": "long",
+                "description": "Duration of the downlink"
+            },
+            "interface_name": {
+                "type": "keyword",
+                "description": "Name of the source interface providing the acquisition data"
+            },
+            "production_service_type": {
+                "type": "keyword",
+                "description": "Type of the production service that provided the record"
+            },
+            "production_service_name": {
+                "type": "keyword",
+                "description": "Name of the production service that provided the record"
+            }
+        },
+        "_meta": {
+            "partition_field": "ingestionTime",
+            "partition_format": "static"
+        }
+    }
+}

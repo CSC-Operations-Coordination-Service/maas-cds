@@ -1,0 +1,63 @@
+{
+    "aliases": {
+        "raw-data-dd-archive": {}
+    },
+    "index_patterns": [
+        "raw-data-dd-archive-*"
+    ],
+    "settings": {
+        "index": {
+            "number_of_shards": 3,
+            "number_of_replicas": 1
+        }
+    },
+    "mappings": {
+        "properties": {
+            "ingestionTime": {
+                "type": "date",
+                "format": "date_time",
+                "locale": "utc",
+                "description": "Timestamp when the raw report was ingested into the dashboard by the collector"
+            },
+            "reportName": {
+                "type": "keyword",
+                "description": "Name of the source catalogue CSV file from which this record was extracted"
+            },
+            "reportFolder": {
+                "type": "keyword",
+                "description": "Folder or path of the source catalogue CSV file from which this record was extracted"
+            },
+            "product_id": {
+                "type": "keyword",
+                "description": "Product identifier from the DHUS archive catalogue (CSV Id)"
+            },
+            "product_name": {
+                "type": "keyword",
+                "description": "Product file name from the DHUS archive catalogue (CSV Name)"
+            },
+            "content_length": {
+                "type": "long",
+                "description": "Product file size in bytes (CSV ContentLength)"
+            },
+            "ingestion_date": {
+                "type": "date",
+                "locale": "utc",
+                "description": "Date the product was ingested into the DHUS archive (CSV IngestionDate)"
+            },
+            "start_date": {
+                "type": "date",
+                "locale": "utc",
+                "description": "Product sensing start date (CSV ContentDate:Start)"
+            },
+            "end_date": {
+                "type": "date",
+                "locale": "utc",
+                "description": "Product sensing end date (CSV ContentDate:End)"
+            }
+        },
+        "_meta": {
+            "partition_field": "ingestion_date",
+            "partition_format": "%Y"
+        }
+    }
+}

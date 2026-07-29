@@ -1,0 +1,28 @@
+{
+    "index_patterns": [
+        "maas-config-service*"
+    ],
+    "settings": {
+        "index": {
+            "number_of_shards": 1,
+            "number_of_replicas": 1
+        }
+    },
+    "mappings": {
+        "properties": {
+            "display_name": {
+                "type": "keyword",
+                "description": "Human-readable display name of the service"
+            },
+            "short_name": {
+                "type": "keyword",
+                "description": "Short name of the service"
+            },
+            "key": {
+                "type": "keyword",
+                "description": "Unique key of the service configuration entry"
+            }
+        },
+        "_meta": {}
+    }
+}

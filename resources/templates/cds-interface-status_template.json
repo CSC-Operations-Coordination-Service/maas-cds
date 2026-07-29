@@ -1,0 +1,50 @@
+{
+    "aliases": {
+        "cds-interface-status": {}
+    },
+    "index_patterns": [
+        "cds-interface-status-*"
+    ],
+    "settings": {
+        "index": {
+            "number_of_shards": 3,
+            "number_of_replicas": 1
+        }
+    },
+    "mappings": {
+        "properties": {
+            "updateTime": {
+                "type": "date",
+                "format": "date_time",
+                "locale": "utc",
+                "description": "Timestamp of the last update of this consolidated document"
+            },
+            "interface_name": {
+                "type": "keyword",
+                "description": "Name of the monitored interface"
+            },
+            "status": {
+                "type": "keyword",
+                "description": "Availability status of the interface"
+            },
+            "status_time_start": {
+                "type": "date",
+                "locale": "utc",
+                "description": "Start time of the interface status period"
+            },
+            "status_time_stop": {
+                "type": "date",
+                "locale": "utc",
+                "description": "Stop time of the interface status period"
+            },
+            "status_duration": {
+                "type": "long",
+                "description": "Duration of the status period in seconds"
+            }
+        },
+        "_meta": {
+            "partition_field": "status_time_start",
+            "partition_format": "monitoring"
+        }
+    }
+}

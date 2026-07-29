@@ -1,0 +1,32 @@
+{
+    "index_patterns": [
+        "maas-config-satellite*"
+    ],
+    "settings": {
+        "index": {
+            "number_of_shards": 1,
+            "number_of_replicas": 1
+        }
+    },
+    "mappings": {
+        "properties": {
+            "display_name": {
+                "type": "keyword",
+                "description": "Human-readable display name of the satellite"
+            },
+            "short_name": {
+                "type": "keyword",
+                "description": "Short name of the satellite"
+            },
+            "mission": {
+                "type": "keyword",
+                "description": "Mission the satellite belongs to (e.g. S1, S2, S3)"
+            },
+            "key": {
+                "type": "keyword",
+                "description": "Unique key of the satellite configuration entry"
+            }
+        },
+        "_meta": {}
+    }
+}

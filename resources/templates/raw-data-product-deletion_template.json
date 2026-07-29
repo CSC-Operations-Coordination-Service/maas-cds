@@ -1,0 +1,44 @@
+{
+    "aliases": {
+        "raw-data-product-deletion": {}
+    },
+    "index_patterns": [
+        "raw-data-product-deletion-*"
+    ],
+    "settings": {
+        "index": {
+            "number_of_shards": 3,
+            "number_of_replicas": 1
+        }
+    },
+    "mappings": {
+        "properties": {
+            "ingestionTime": {
+                "type": "date",
+                "format": "date_time",
+                "locale": "utc",
+                "description": "Timestamp when the collector ingested this record into MAAS"
+            },
+            "reportFolder": {
+                "type": "keyword",
+                "description": "Folder path of the source deletion list report file"
+            },
+            "reportName": {
+                "type": "keyword",
+                "description": "Name of the source deletion list report the record was extracted from"
+            },
+            "product_name": {
+                "type": "keyword",
+                "description": "Name of the product to delete from the deletion list report"
+            },
+            "interface_type": {
+                "type": "keyword",
+                "description": "Type of interface targeted by the deletion ('DD' for datahub, 'LTA' for long term archive)"
+            }
+        },
+        "_meta": {
+            "partition_field": "ingestionTime",
+            "partition_format": "static"
+        }
+    }
+}

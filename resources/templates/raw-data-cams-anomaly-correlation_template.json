@@ -1,0 +1,68 @@
+{
+    "aliases": {
+        "raw-data-cams-anomaly-correlation": {}
+    },
+    "index_patterns": [
+        "raw-data-cams-anomaly-correlation-*"
+    ],
+    "settings": {
+        "index": {
+            "number_of_shards": 3,
+            "number_of_replicas": 1
+        }
+    },
+    "mappings": {
+        "properties": {
+            "ingestionTime": {
+                "type": "date",
+                "format": "date_time",
+                "locale": "utc",
+                "description": "Timestamp when the anomaly correlation record was ingested into the raw-data store"
+            },
+            "interface_name": {
+                "type": "keyword",
+                "description": "Name of the collector interface that produced the record"
+            },
+            "reportName": {
+                "type": "keyword",
+                "description": "Identifier of the source report the record was extracted from"
+            },
+            "reportFolder": {
+                "type": "keyword",
+                "description": "Source folder of the ingested report"
+            },
+            "key": {
+                "type": "keyword",
+                "description": "Unique key identifying the anomaly correlation record"
+            },
+            "cams_issue": {
+                "type": "keyword",
+                "description": "Key of the CAMS ticket this anomaly correlation is linked to"
+            },
+            "origin": {
+                "type": "keyword",
+                "description": "Origin of the anomaly, propagated to the linked CAMS ticket"
+            },
+            "description": {
+                "type": "keyword",
+                "description": "Free-text description of the anomaly, propagated to the linked CAMS ticket"
+            },
+            "datatake_ids": {
+                "type": "keyword",
+                "description": "Identifiers of the datatakes impacted by the anomaly"
+            },
+            "acquisition_pass": {
+                "type": "keyword",
+                "description": "Acquisition pass keys impacted by the anomaly (satellite, station type, identifier and ground station)"
+            },
+            "products": {
+                "type": "keyword",
+                "description": "Names of the products impacted by the anomaly"
+            }
+        },
+        "_meta": {
+            "partition_field": "ingestionTime",
+            "partition_format": "static"
+        }
+    }
+}

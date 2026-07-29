@@ -1,0 +1,63 @@
+# syntax=docker/dockerfile:1
+#
+# Mode 2 — "registry": install the maas-cds release that was published to the
+# Nexus PyPI repository, by version. No wheel needs to be in the context; the
+# build context is still the repo root because the OpenSearch templates and the
+# sample engine configuration are copied from it.
+#
+# Used by the release job of .github/workflows/maas-cds.yml (`docker-registry`).
+#
+# Build locally:
+#   docker build -f Dockerfile.registry -t maas-cds:2.8.0 \
+#     --build-arg PACKAGE_VERSION=2.8.0 \
+#     --secret id=pip_index_url,env=PIP_INDEX_URL .
+#
+ARG PYTHON_VERSION=3.11
+
+FROM python:${PYTHON_VERSION}-slim AS runtime
+LABEL Author="Serco - Space unit"
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Exact version to install, e.g. "2.8.0". Provided by the pipeline.
+ARG PACKAGE_VERSION
+
+WORKDIR /app
+
+# `pip_index_url` secret = full Nexus PyPI simple index, e.g.
+#   https://user:pass@nexus.example.com/repository/pypi-prod-group/simple
+# Passed as a BuildKit secret so the credentials never reach an image layer.
+# maas-model, maas-engine and maas-collector are resolved from the same index.
+RUN --mount=type=secret,id=pip_index_url \
+    pip install --no-cache-dir \
+        --index-url "$(cat /run/secrets/pip_index_url)" \
+        "maas-cds==${PACKAGE_VERSION}"
+
+# OpenSearch index templates, consumed by the database initialisation scripts.
+COPY resources/ resources/
+# Sample engine configuration — mount your own over /conf in production.
+COPY conf/cds-engine-conf.json /conf/default-engine.conf
+
+# Create a non-root user and group, and hand over the application files.
+RUN groupadd -r appuser && useradd -r -g appuser appuser \
+    && chown -R appuser:appuser /app /conf
+
+USER appuser
+
+# Host the health check server binds to, and the port it listens on. Read by
+# maas_engine through its --healthcheck-hostname / --healthcheck-port options.
+ENV HEALTHCHECK_HOSTNAME=localhost
+ENV HEALTHCHECK_PORT=8080
+
+# Health check to ensure the container is running properly. Uses python rather
+# than curl: the slim base image ships no curl, and py-healthcheck serves the
+# report on "/" (see maas_engine.health.health).
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD python -c 'import os, sys, urllib.request; sys.exit(0 if urllib.request.urlopen("http://" + os.environ["HEALTHCHECK_HOSTNAME"] + ":" + os.environ["HEALTHCHECK_PORT"] + "/", timeout=5).status == 200 else 1)'
+
+VOLUME ["/conf"]
+
+ENTRYPOINT [ "python", "-m"]
+
+CMD ["maas_engine", "-v", "--config", "/conf/default-engine.conf"]

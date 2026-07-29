@@ -1,0 +1,36 @@
+{
+    "aliases": {
+        "cds-s2-tilpar": {}
+    },
+    "index_patterns": [
+        "cds-s2-tilpar-*"
+    ],
+    "settings": {
+        "index": {
+            "number_of_shards": 3,
+            "number_of_replicas": 1
+        }
+    },
+    "mappings": {
+        "properties": {
+            "geometry": {
+                "type": "geo_shape",
+                "description": "Geographic shape (footprint) of the Sentinel-2 tile"
+            },
+            "name": {
+                "type": "keyword",
+                "description": "Name of the Sentinel-2 tile"
+            },
+            "timestamp": {
+                "type": "date",
+                "format": "date_time",
+                "locale": "utc",
+                "description": "Timestamp of the tile document"
+            }
+        },
+        "_meta": {
+            "partition_field": "timestamp",
+            "partition_format": "tiles"
+        }
+    }
+}

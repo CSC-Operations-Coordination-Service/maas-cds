@@ -1,0 +1,46 @@
+{
+    "index_patterns": [
+        "cds-expected*"
+    ],
+    "settings": {
+        "index": {
+            "number_of_shards": 3,
+            "number_of_replicas": 1
+        }
+    },
+    "mappings": {
+        "properties": {
+            "service_type": {
+                "type": "keyword",
+                "description": "Service or interface type the expected value applies to"
+            },
+            "mission": {
+                "type": "keyword",
+                "description": "Mission identifier the expected value applies to (e.g. S1, S2)"
+            },
+            "satellite": {
+                "type": "keyword",
+                "description": "Satellite the expected value applies to"
+            },
+            "product_type": {
+                "type": "keyword",
+                "description": "Product type the expected value applies to"
+            },
+            "provider": {
+                "type": "keyword",
+                "description": "Provider or production service the expected value applies to"
+            },
+            "date": {
+                "type": "date",
+                "format": "date_time",
+                "locale": "utc",
+                "description": "Date the daily expected value applies to"
+            },
+            "daily_expected": {
+                "type": "float",
+                "description": "Expected number of products for the given day"
+            }
+        },
+        "_meta": {}
+    }
+}

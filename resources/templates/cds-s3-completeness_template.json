@@ -1,0 +1,119 @@
+{
+    "aliases": {
+        "cds-s3-completeness": {}
+    },
+    "index_patterns": [
+        "cds-s3-completeness-*"
+    ],
+    "settings": {
+        "index": {
+            "number_of_shards": 3,
+            "number_of_replicas": 1,
+            "mapping": {
+                "total_fields": {
+                    "limit": "2000"
+                }
+            }
+        }
+    },
+    "mappings": {
+        "properties": {
+            "updateTime": {
+                "type": "date",
+                "format": "date_time",
+                "locale": "utc",
+                "description": "Date and time when this Sentinel-3 completeness document was last updated"
+            },
+            "key": {
+                "type": "keyword",
+                "description": "Unique document key built from the datatake identifier, product type and timeliness"
+            },
+            "mission": {
+                "type": "keyword",
+                "description": "Mission identifier derived from the satellite unit (S3)"
+            },
+            "satellite_unit": {
+                "type": "keyword",
+                "description": "Satellite unit this completeness applies to (e.g. S3A, S3B)"
+            },
+            "datatake_id": {
+                "type": "keyword",
+                "description": "Identifier of the datatake this completeness is computed for"
+            },
+            "observation_time_start": {
+                "type": "date",
+                "locale": "utc",
+                "description": "Start of the observation period covered by this completeness"
+            },
+            "observation_time_stop": {
+                "type": "date",
+                "locale": "utc",
+                "description": "Stop of the observation period covered by this completeness"
+            },
+            "observation_duration": {
+                "type": "long",
+                "description": "Duration of the observation period in microseconds"
+            },
+            "timeliness": {
+                "type": "keyword",
+                "description": "Timeliness of the products this completeness applies to"
+            },
+            "product_type": {
+                "type": "keyword",
+                "description": "Product type this completeness applies to"
+            },
+            "product_level": {
+                "type": "keyword",
+                "description": "Product level of the product type (e.g. L0_, L1, L2)"
+            },
+            "expected": {
+                "type": "long",
+                "description": "Expected sensing value for the product type, in microseconds, including tolerance"
+            },
+            "value": {
+                "type": "long",
+                "description": "Measured completeness value, total sensing of the produced products in microseconds"
+            },
+            "value_adjusted": {
+                "type": "long",
+                "description": "Completeness value capped at the expected value to avoid percentages above 100%"
+            },
+            "percentage": {
+                "type": "long",
+                "meta": {
+                    "metric_type": "gauge",
+                    "unit": "percent"
+                },
+                "description": "Completeness percentage of adjusted value over expected value"
+            },
+            "status": {
+                "type": "keyword",
+                "description": "Completeness status label derived from the percentage"
+            },
+            "cams_tickets": {
+                "type": "keyword",
+                "description": "List of CAMS ticket identifiers linked to this completeness"
+            },
+            "last_attached_ticket": {
+                "type": "keyword",
+                "description": "Identifier of the most recently attached CAMS ticket"
+            },
+            "last_attached_ticket_url": {
+                "type": "keyword",
+                "description": "URL of the most recently attached CAMS ticket"
+            },
+            "cams_origin": {
+                "type": "keyword",
+                "description": "Origin of the last attached CAMS ticket"
+            },
+            "cams_description": {
+                "type": "keyword",
+                "description": "Description of the last attached CAMS ticket"
+            }
+        },
+        "_meta": {
+            "partition_field": "observation_time_start",
+            "partition_format": "static"
+        }
+    }
+}
