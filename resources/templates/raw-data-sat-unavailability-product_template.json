@@ -16,146 +16,112 @@
             "ingestionTime": {
                 "type": "date",
                 "format": "date_time",
-                "locale": "utc",
-                "description": "Timestamp when the raw product was ingested into the system"
+                "locale": "utc"
             },
             "reportFolder": {
-                "type": "keyword",
-                "description": "Source folder or path where the report file was collected"
+                "type": "keyword"
             },
             "reportName": {
-                "type": "keyword",
-                "description": "Base file name of the ingested report (basename of the source file)"
+                "type": "keyword"
             },
             "file_name": {
-                "type": "keyword",
-                "description": "File name declared in the Earth Explorer header Fixed_Header/File_Name"
+                "type": "keyword"
             },
             "mission": {
-                "type": "keyword",
-                "description": "Mission identifier from the Earth Explorer header Fixed_Header/Mission"
+                "type": "keyword"
             },
             "unavailability_reference": {
-                "type": "keyword",
-                "description": "Unavailability reference from Data_Block/Unavailability_Reference"
+                "type": "keyword"
             },
             "unavailability_type": {
-                "type": "keyword",
-                "description": "Unavailability type from Data_Block/Unavailability_Type"
+                "type": "keyword"
             },
             "subsystem": {
-                "type": "keyword",
-                "description": "Satellite subsystem affected by the unavailability (Subsystem element)"
+                "type": "keyword"
             },
             "start_time": {
-                "type": "keyword",
-                "description": "Start time of the unavailability period (StartTime element)"
+                "type": "keyword"
             },
             "start_orbit": {
-                "type": "keyword",
-                "description": "Orbit number at the start of the unavailability (StartOrbit element, normalized)"
+                "type": "keyword"
             },
             "start_anx_offset": {
-                "type": "integer",
-                "description": "Offset from the ascending node crossing at the start of the unavailability (StartAnxOffset element)"
+                "type": "integer"
             },
             "end_time": {
-                "type": "keyword",
-                "description": "End time of the unavailability period (EndTime element)"
+                "type": "keyword"
             },
             "end_orbit": {
-                "type": "keyword",
-                "description": "Orbit number at the end of the unavailability (EndOrbit element, normalized)"
+                "type": "keyword"
             },
             "end_anx_offset": {
-                "type": "integer",
-                "description": "Offset from the ascending node crossing at the end of the unavailability (EndAnxOffset element)"
+                "type": "integer"
             },
             "type": {
-                "type": "keyword",
-                "description": "Type of the unavailability entry (Type element)"
+                "type": "keyword"
             },
             "comment": {
-                "type": "keyword",
-                "description": "Free-text comment describing the unavailability (Comment element)"
+                "type": "keyword"
             },
             "interface_name": {
-                "type": "keyword",
-                "description": "Interface that provided the product, set to the constant Satellite-Unavailability"
+                "type": "keyword"
             },
             "production_service_type": {
-                "type": "keyword",
-                "description": "Production service type, set to the constant AUXIP"
+                "type": "keyword"
             },
             "production_service_name": {
-                "type": "keyword",
-                "description": "Production service name, set to the constant Exprivia"
+                "type": "keyword"
             },
             "description": {
-                "type": "text",
-                "description": "Free-text description of the unavailability record"
+                "type": "text"
             },
             "file_version": {
-                "type": "keyword",
-                "description": "Version of the source unavailability file"
+                "type": "keyword"
             },
             "file_class": {
-                "type": "keyword",
-                "description": "File class of the source Earth Explorer file"
+                "type": "keyword"
             },
             "file_type": {
-                "type": "keyword",
-                "description": "File type of the source Earth Explorer file"
+                "type": "keyword"
             },
             "notes": {
-                "type": "text",
-                "description": "Additional free-text notes attached to the unavailability record"
+                "type": "text"
             },
             "source_creation_date": {
                 "type": "date",
                 "format": "date_time",
-                "locale": "utc",
-                "description": "Creation date of the source file as declared by the producer"
+                "locale": "utc"
             },
             "source_creator": {
-                "type": "keyword",
-                "description": "Identifier of the entity that created the source file"
+                "type": "keyword"
             },
             "source_system": {
-                "type": "keyword",
-                "description": "System that produced the source file"
+                "type": "keyword"
             },
             "validity_start": {
                 "type": "date",
                 "format": "date_time",
-                "locale": "utc",
-                "description": "Start of the validity period declared in the source file"
+                "locale": "utc"
             },
             "validity_stop": {
                 "type": "date",
                 "format": "date_time",
-                "locale": "utc",
-                "description": "End of the validity period declared in the source file"
+                "locale": "utc"
             },
             "category": {
-                "type": "keyword",
-                "description": "Category classifying the unavailability record"
+                "type": "keyword"
             },
             "end_doy": {
-                "type": "integer",
-                "description": "Day of year corresponding to the end of the unavailability"
+                "type": "integer"
             },
             "start_doy": {
-                "type": "integer",
-                "description": "Day of year corresponding to the start of the unavailability"
+                "type": "integer"
             },
             "unavailability_status": {
-                "type": "keyword",
-                "description": "Status of the unavailability record"
+                "type": "keyword"
             },
             "unique_identifier": {
-                "type": "keyword",
-                "description": "Unique identifier of the unavailability record"
+                "type": "keyword"
             }
         },
         "_meta": {

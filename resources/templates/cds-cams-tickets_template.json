@@ -16,119 +16,91 @@
             "updateTime": {
                 "type": "date",
                 "format": "date_time",
-                "locale": "utc",
-                "description": "Date and time when this consolidated CAMS ticket document was last updated by the consolidation engine"
+                "locale": "utc"
             },
             "title": {
-                "type": "keyword",
-                "description": "Title of the CAMS anomaly ticket"
+                "type": "keyword"
             },
             "key": {
-                "type": "keyword",
-                "description": "CAMS ticket key uniquely identifying the ticket"
+                "type": "keyword"
             },
             "affected_systems": {
-                "type": "keyword",
-                "description": "Systems affected by the anomaly reported in the ticket"
+                "type": "keyword"
             },
             "criticality": {
-                "type": "keyword",
-                "description": "Criticality level of the anomaly ticket"
+                "type": "keyword"
             },
             "urgency": {
-                "type": "keyword",
-                "description": "Urgency level of the anomaly ticket"
+                "type": "keyword"
             },
             "originating_entity": {
-                "type": "keyword",
-                "description": "Entity that originated the ticket"
+                "type": "keyword"
             },
             "entity": {
-                "type": "keyword",
-                "description": "Entity responsible for or associated with the ticket"
+                "type": "keyword"
             },
             "assigned_element": {
-                "type": "keyword",
-                "description": "Ground segment element(s) or station(s) the ticket is assigned to"
+                "type": "keyword"
             },
             "review_board_dispositions": {
-                "type": "keyword",
-                "description": "Review board dispositions recorded for the ticket"
+                "type": "keyword"
             },
             "reporter": {
-                "type": "keyword",
-                "description": "Author who reported the ticket"
+                "type": "keyword"
             },
             "involved_entities": {
-                "type": "keyword",
-                "description": "Entities involved in the ticket"
+                "type": "keyword"
             },
             "created": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Creation date of the ticket"
+                "locale": "utc"
             },
             "updated": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Last update date of the ticket"
+                "locale": "utc"
             },
             "occurence_date": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Date when the reported anomaly occurred"
+                "locale": "utc"
             },
             "status": {
-                "type": "keyword",
-                "description": "Current status of the ticket"
+                "type": "keyword"
             },
             "environment": {
-                "type": "keyword",
-                "description": "Impacted environment(s) referenced by the ticket, used to link impacted entities"
+                "type": "keyword"
             },
             "linked_issues": {
-                "type": "keyword",
-                "description": "Keys of issues linked to this ticket"
+                "type": "keyword"
             },
             "origin": {
-                "type": "keyword",
-                "description": "Origin of the anomaly taken from the latest linked anomaly correlation file"
+                "type": "keyword"
             },
             "description": {
-                "type": "keyword",
-                "description": "Description of the anomaly taken from the latest linked anomaly correlation file"
+                "type": "keyword"
             },
             "correlation_file_id": {
-                "type": "keyword",
-                "description": "Identifiers of the linked anomaly correlation (AN) files associated with this ticket"
+                "type": "keyword"
             },
             "url": {
-                "type": "keyword",
-                "description": "URL to the ticket in the CAMS browse interface"
+                "type": "keyword"
             },
             "datatake_ids": {
-                "type": "keyword",
-                "description": "Datatake identifiers impacted by the ticket, aggregated from linked anomaly correlation files"
+                "type": "keyword"
             },
             "acquisition_pass": {
-                "type": "keyword",
-                "description": "Acquisition pass keys impacted by the ticket, aggregated from linked anomaly correlation files"
+                "type": "keyword"
             },
             "products": {
-                "type": "keyword",
-                "description": "Product names impacted by the ticket, aggregated from linked anomaly correlation files"
+                "type": "keyword"
             },
             "publications": {
-                "type": "keyword",
-                "description": "Publication names impacted by the ticket, aggregated from linked anomaly correlation files"
+                "type": "keyword"
             },
             "addressed_entities": {
-                "type": "keyword",
-                "description": "Entities addressed by the ticket"
+                "type": "keyword"
             },
             "esa_group": {
-                "type": "keyword",
-                "description": "ESA group associated with the ticket"
+                "type": "keyword"
             }
         },
         "_meta": {

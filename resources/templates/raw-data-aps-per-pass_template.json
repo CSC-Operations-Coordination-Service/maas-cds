@@ -16,78 +16,60 @@
             "ingestionTime": {
                 "type": "date",
                 "format": "date_time",
-                "locale": "utc",
-                "description": "Timestamp when the source report was ingested into the system"
+                "locale": "utc"
             },
             "reportName": {
-                "type": "keyword",
-                "description": "Name of the source report file the record was extracted from"
+                "type": "keyword"
             },
             "reportFolder": {
-                "type": "keyword",
-                "description": "Source folder or path where the report file was collected"
+                "type": "keyword"
             },
             "mission": {
-                "type": "keyword",
-                "description": "Mission code derived from the report Mission header (Earth_Explorer_Header/Fixed_Header/Mission)"
+                "type": "keyword"
             },
             "satellite_id": {
-                "type": "keyword",
-                "description": "Satellite identifier derived from the report Mission header (Earth_Explorer_Header/Fixed_Header/Mission)"
+                "type": "keyword"
             },
             "station_id": {
-                "type": "keyword",
-                "description": "Ground station identifier of the acquisition (StationAcquisitionReport/StationId)"
+                "type": "keyword"
             },
             "antenna_id": {
-                "type": "keyword",
-                "description": "Identifier of the antenna used for the downlink (StationDownlinkDetails/AntennaId)"
+                "type": "keyword"
             },
             "acquisition_id": {
-                "type": "keyword",
-                "description": "Acquisition identifier of the pass (StationDownlinkDetails/Acq_Id)"
+                "type": "keyword"
             },
             "downlink_start_time": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Start time of the downlink pass (StationDownlinkDetails/DownlinkStartTime)"
+                "locale": "utc"
             },
             "downlink_end_time": {
                 "type": "date",
-                "locale": "utc",
-                "description": "End time of the downlink pass (StationDownlinkDetails/DownlinkEndTime)"
+                "locale": "utc"
             },
             "downlink_status": {
-                "type": "keyword",
-                "description": "Status of the downlink pass (StationDownlinkDetails/DownlinkStatus)"
+                "type": "keyword"
             },
             "downlink_orbit": {
-                "type": "keyword",
-                "description": "Orbit number during which the downlink occurred (Variable_Header/Downlink_Orbit)"
+                "type": "keyword"
             },
             "comments": {
-                "type": "keyword",
-                "description": "Free-text comments from the station acquisition report (StationDownlinkDetails/Comments)"
+                "type": "keyword"
             },
             "fer_downlink": {
-                "type": "float",
-                "description": "Frame Error Rate reported for the downlink (FEP_Information/FER_Downlink)"
+                "type": "float"
             },
             "fer_data": {
-                "type": "float",
-                "description": "Frame Error Rate reported for the data (FEP_Information/FER_Data)"
+                "type": "float"
             },
             "interface_name": {
-                "type": "keyword",
-                "description": "Name of the collector interface that produced this record, set to AcqPassesStatusEDS"
+                "type": "keyword"
             },
             "production_service_type": {
-                "type": "keyword",
-                "description": "Type of the production service that provided the report, set to EDS"
+                "type": "keyword"
             },
             "production_service_name": {
-                "type": "keyword",
-                "description": "Name of the production service that provided the report, set to CGS"
+                "type": "keyword"
             }
         },
         "_meta": {

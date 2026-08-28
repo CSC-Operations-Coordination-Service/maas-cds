@@ -16,140 +16,107 @@
             "updateTime": {
                 "type": "date",
                 "format": "date_time",
-                "locale": "utc",
-                "description": "Timestamp of the last update of this document"
+                "locale": "utc"
             },
             "reportName": {
-                "type": "keyword",
-                "description": "Name of the source report the document was ingested from"
+                "type": "keyword"
             },
             "link_session_id": {
-                "type": "keyword",
-                "description": "Identifier of the EDRS link session"
+                "type": "keyword"
             },
             "geo_satellite_id": {
-                "type": "keyword",
-                "description": "Identifier of the geostationary relay satellite (EDRS node)"
+                "type": "keyword"
             },
             "satellite_id": {
-                "type": "keyword",
-                "description": "Identifier of the acquiring satellite"
+                "type": "keyword"
             },
             "mission": {
-                "type": "keyword",
-                "description": "Mission the satellite belongs to (e.g. S1, S2)"
+                "type": "keyword"
             },
             "doy": {
-                "type": "integer",
-                "description": "Day of year of the link session"
+                "type": "integer"
             },
             "planned_link_session_start": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Planned start time of the EDRS link session"
+                "locale": "utc"
             },
             "planned_link_session_stop": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Planned stop time of the EDRS link session"
+                "locale": "utc"
             },
             "moc_accept_status": {
-                "type": "keyword",
-                "description": "Status of the MOC acceptance step of the link session"
+                "type": "keyword"
             },
             "uplink_status": {
-                "type": "keyword",
-                "description": "Status of the uplink step of the link session"
+                "type": "keyword"
             },
             "spacecraft_execution": {
-                "type": "keyword",
-                "description": "Status of the spacecraft execution step of the link session"
+                "type": "keyword"
             },
             "edte_acquisition_status": {
-                "type": "keyword",
-                "description": "Status of the EDTE acquisition step of the link session"
+                "type": "keyword"
             },
             "dcsu_archive_status": {
-                "type": "keyword",
-                "description": "Status of the DCSU archiving step of the link session"
+                "type": "keyword"
             },
             "sfdap_dissem_status": {
-                "type": "keyword",
-                "description": "Status of the SFDAP dissemination step of the link session"
+                "type": "keyword"
             },
             "total_status": {
-                "type": "keyword",
-                "description": "Overall status of the link session, aggregating the individual processing step statuses"
+                "type": "keyword"
             },
             "ground_station": {
-                "type": "keyword",
-                "description": "Ground station where the link session data was disseminated"
+                "type": "keyword"
             },
             "dissemination_start": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Start time of the data dissemination"
+                "locale": "utc"
             },
             "dissemination_stop": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Stop time of the data dissemination"
+                "locale": "utc"
             },
             "cadus": {
-                "type": "long",
-                "description": "Number of CADUs (Channel Access Data Units) processed during the link session"
+                "type": "long"
             },
             "fer": {
-                "type": "float",
-                "description": "Frame error rate of the link session"
+                "type": "float"
             },
             "archived_data_size": {
-                "type": "float",
-                "description": "Size of the archived data for the link session"
+                "type": "float"
             },
             "disseminated_data": {
-                "type": "float",
-                "description": "Volume of disseminated data for the link session"
+                "type": "float"
             },
             "notes": {
-                "type": "keyword",
-                "description": "Free-text notes about the link session"
+                "type": "keyword"
             },
             "cams_tickets": {
-                "type": "keyword",
-                "description": "Identifiers of the CAMS tickets linked to this link session"
+                "type": "keyword"
             },
             "last_attached_ticket": {
-                "type": "keyword",
-                "description": "Identifier of the last CAMS ticket attached to this link session"
+                "type": "keyword"
             },
             "last_attached_ticket_url": {
-                "type": "keyword",
-                "description": "URL of the last CAMS ticket attached to this link session"
+                "type": "keyword"
             },
             "cams_origin": {
-                "type": "keyword",
-                "description": "Origin of the linked CAMS ticket(s)"
+                "type": "keyword"
             },
             "cams_description": {
-                "type": "keyword",
-                "description": "Description of the linked CAMS ticket(s)"
+                "type": "keyword"
             },
             "report_type": {
-                "type": "keyword",
-                "description": "Type of the source report (daily, weekly or monthly)"
+                "type": "keyword"
             },
             "report_name_daily": {
-                "type": "keyword",
-                "description": "Name of the daily source report the document was ingested from"
+                "type": "keyword"
             },
             "report_name_weekly": {
-                "type": "keyword",
-                "description": "Name of the weekly source report the document was ingested from"
+                "type": "keyword"
             },
             "report_name_monthly": {
-                "type": "keyword",
-                "description": "Name of the monthly source report the document was ingested from"
+                "type": "keyword"
             }
         },
         "_meta": {

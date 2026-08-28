@@ -16,30 +16,24 @@
             "ingestionTime": {
                 "type": "date",
                 "format": "date_time",
-                "locale": "utc",
-                "description": "Timestamp when the collector ingested this record into MAAS"
+                "locale": "utc"
             },
             "access_date": {
                 "type": "date",
                 "format": "date_time",
-                "locale": "utc",
-                "description": "Grafana access timestamp from the Loki log stream 't' field"
+                "locale": "utc"
             },
             "user": {
-                "type": "keyword",
-                "description": "User name that accessed Grafana from the Loki log stream 'uname' field"
+                "type": "keyword"
             },
             "reportName": {
-                "type": "keyword",
-                "description": "Name of the source Grafana usage report the record was extracted from"
+                "type": "keyword"
             },
             "interface_name": {
-                "type": "keyword",
-                "description": "Name of the source Grafana usage interface (e.g. Grafana_Usage_Prod)"
+                "type": "keyword"
             },
             "dashboard": {
-                "type": "keyword",
-                "description": "Accessed dashboard path from the Loki log stream 'path' field"
+                "type": "keyword"
             }
         },
         "_meta": {

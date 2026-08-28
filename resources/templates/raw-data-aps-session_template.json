@@ -16,175 +16,134 @@
             "ingestionTime": {
                 "type": "date",
                 "format": "date_time",
-                "locale": "utc",
-                "description": "Timestamp when the source report was ingested into the system"
+                "locale": "utc"
             },
             "reportName": {
-                "type": "keyword",
-                "description": "Name of the source report file the record was extracted from"
+                "type": "keyword"
             },
             "reportFolder": {
-                "type": "keyword",
-                "description": "Source folder or path where the report file was collected"
+                "type": "keyword"
             },
             "session_id": {
-                "type": "keyword",
-                "description": "CADIP acquisition session identifier (from SessionId)"
+                "type": "keyword"
             },
             "num_channels": {
-                "type": "long",
-                "description": "Number of channels used for the downlink session (from NumChannels)"
+                "type": "long"
             },
             "satellite_id": {
-                "type": "keyword",
-                "description": "Identifier of the satellite that performed the downlink (from Satellite)"
+                "type": "keyword"
             },
             "ground_station": {
-                "type": "keyword",
-                "description": "Ground station code where the session was acquired"
+                "type": "keyword"
             },
             "station_unit_id": {
-                "type": "keyword",
-                "description": "Identifier of the station unit that acquired the session (from StationUnitId)"
+                "type": "keyword"
             },
             "acquisition_id": {
-                "type": "keyword",
-                "description": "Acquisition identifier of the downlink session (from AcquisitionId)"
+                "type": "keyword"
             },
             "publication_date": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Date the session was published by the CADIP service (from PublicationDate)"
+                "locale": "utc"
             },
             "downlink_orbit": {
-                "type": "keyword",
-                "description": "Orbit number during which the downlink occurred (from DownlinkOrbit)"
+                "type": "keyword"
             },
             "antenna_id": {
-                "type": "keyword",
-                "description": "Identifier of the antenna used for the downlink (from AntennaId)"
+                "type": "keyword"
             },
             "antenna_status": {
-                "type": "boolean",
-                "description": "Whether the antenna operated nominally during the session (from AntennaStatusOK)"
+                "type": "boolean"
             },
             "front_end_id": {
-                "type": "keyword",
-                "description": "Identifier of the front-end processor used for the session (from FrontEndId)"
+                "type": "keyword"
             },
             "retransfer": {
-                "type": "boolean",
-                "description": "Whether the session data was delivered as a retransfer (from Retransfer)"
+                "type": "boolean"
             },
             "front_end_status": {
-                "type": "boolean",
-                "description": "Whether the front-end processor operated nominally (from FrontEndStatusOK)"
+                "type": "boolean"
             },
             "planned_data_start": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Planned start time of the data downlink (from PlannedDataStart)"
+                "locale": "utc"
             },
             "planned_data_stop": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Planned stop time of the data downlink (from PlannedDataStop)"
+                "locale": "utc"
             },
             "downlink_start": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Actual start time of the data downlink (from DownlinkStart)"
+                "locale": "utc"
             },
             "downlink_stop": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Actual stop time of the data downlink (from DownlinkStop)"
+                "locale": "utc"
             },
             "downlink_status": {
-                "type": "boolean",
-                "description": "Whether the downlink completed successfully (from DownlinkStatusOK)"
+                "type": "boolean"
             },
             "delivery_push_status": {
-                "type": "boolean",
-                "description": "Whether the delivery push of the session completed successfully (from DeliveryPushOK)"
+                "type": "boolean"
             },
             "interface_name": {
-                "type": "keyword",
-                "description": "Name of the collector interface that produced this record (e.g. CADIP_<station>_Sessions)"
+                "type": "keyword"
             },
             "production_service_type": {
-                "type": "keyword",
-                "description": "Type of the production service that provided the session, set to CADIP"
+                "type": "keyword"
             },
             "station_id": {
-                "type": "keyword",
-                "description": "CADIP station identifier (from StationId, defaulted per station when absent)"
+                "type": "keyword"
             },
             "production_service_name": {
-                "type": "keyword",
-                "description": "Name of the CADIP ground station service that provided the session"
+                "type": "keyword"
             },
             "quality_infos": {
                 "type": "object",
-                "description": "Per-channel transfer-frame quality metrics for the session (from the QualityInfo expansion)",
                 "properties": {
                     "Channel": {
-                        "type": "long",
-                        "description": "Channel number the quality metrics apply to"
+                        "type": "long"
                     },
                     "AcquiredTFs": {
-                        "type": "long",
-                        "description": "Total number of transfer frames acquired on the channel"
+                        "type": "long"
                     },
                     "SessionId": {
-                        "type": "keyword",
-                        "description": "Acquisition session identifier the quality info belongs to"
+                        "type": "keyword"
                     },
                     "ErrorTFs": {
-                        "type": "long",
-                        "description": "Number of transfer frames received with errors"
+                        "type": "long"
                     },
                     "CorrectedTFs": {
-                        "type": "long",
-                        "description": "Number of transfer frames corrected by error correction"
+                        "type": "long"
                     },
                     "UncorrectableTFs": {
-                        "type": "long",
-                        "description": "Number of transfer frames that could not be corrected"
+                        "type": "long"
                     },
                     "DataTFs": {
-                        "type": "long",
-                        "description": "Number of data transfer frames acquired on the channel"
+                        "type": "long"
                     },
                     "ErrorDataTFs": {
-                        "type": "long",
-                        "description": "Number of data transfer frames received with errors"
+                        "type": "long"
                     },
                     "CorrectedDataTFs": {
-                        "type": "long",
-                        "description": "Number of data transfer frames corrected by error correction"
+                        "type": "long"
                     },
                     "UncorrectableDataTFs": {
-                        "type": "long",
-                        "description": "Number of data transfer frames that could not be corrected"
+                        "type": "long"
                     },
                     "DeliveryStart": {
                         "type": "date",
-                        "locale": "utc",
-                        "description": "Start time of the delivery of the channel data"
+                        "locale": "utc"
                     },
                     "DeliveryStop": {
                         "type": "date",
-                        "locale": "utc",
-                        "description": "Stop time of the delivery of the channel data"
+                        "locale": "utc"
                     },
                     "TotalChunks": {
-                        "type": "long",
-                        "description": "Total number of data chunks delivered for the channel"
+                        "type": "long"
                     },
                     "TotalVolume": {
-                        "type": "long",
-                        "description": "Total data volume delivered for the channel in bytes"
+                        "type": "long"
                     }
                 }
             }

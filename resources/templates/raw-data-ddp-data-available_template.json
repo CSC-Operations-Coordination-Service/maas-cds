@@ -16,56 +16,44 @@
             "ingestionTime": {
                 "type": "date",
                 "format": "date_time",
-                "locale": "utc",
-                "description": "Timestamp when the collector ingested this record into MAAS"
+                "locale": "utc"
             },
             "reportName": {
-                "type": "keyword",
-                "description": "Name of the source DSIB XML report the record was extracted from"
+                "type": "keyword"
             },
             "reportFolder": {
-                "type": "keyword",
-                "description": "Folder path of the source DSIB report file"
+                "type": "keyword"
             },
             "session_id": {
-                "type": "keyword",
-                "description": "DDP session identifier extracted from the DSIB file"
+                "type": "keyword"
             },
             "time_start": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Session start time extracted from the DSIB file"
+                "locale": "utc"
             },
             "time_stop": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Session stop time extracted from the DSIB file"
+                "locale": "utc"
             },
             "time_created": {
                 "type": "date",
-                "locale": "utc",
-                "description": "DSIB creation time extracted from the DSIB file"
+                "locale": "utc"
             },
             "time_finished": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Session finished time extracted from the DSIB file"
+                "locale": "utc"
             },
             "data_size": {
-                "type": "long",
-                "description": "Data size of the session extracted from the DSIB file"
+                "type": "long"
             },
             "interface_name": {
-                "type": "keyword",
-                "description": "Name of the source DDP interface (DDP_EDRS_EDIP)"
+                "type": "keyword"
             },
             "production_service_type": {
-                "type": "keyword",
-                "description": "Type of the production service (DDP)"
+                "type": "keyword"
             },
             "production_service_name": {
-                "type": "keyword",
-                "description": "Name of the production service (EDRS_EDIP)"
+                "type": "keyword"
             }
         },
         "_meta": {

@@ -16,70 +16,55 @@
             "ingestionTime": {
                 "type": "date",
                 "format": "date_time",
-                "locale": "utc",
-                "description": "Timestamp when the raw report was ingested into the dashboard by the collector"
+                "locale": "utc"
             },
             "reportName": {
-                "type": "keyword",
-                "description": "Name of the source report file from which this record was extracted"
+                "type": "keyword"
             },
             "reportFolder": {
-                "type": "keyword",
-                "description": "Folder or path of the source report file from which this record was extracted"
+                "type": "keyword"
             },
             "product_id": {
-                "type": "keyword",
-                "description": "Product identifier from the LTA interface (OData Id)"
+                "type": "keyword"
             },
             "product_name": {
-                "type": "keyword",
-                "description": "Product file name from the LTA interface (OData Name)"
+                "type": "keyword"
             },
             "content_length": {
-                "type": "long",
-                "description": "Product file size in bytes (OData ContentLength)"
+                "type": "long"
             },
             "publication_date": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Date the product was published on the LTA interface (OData PublicationDate)"
+                "locale": "utc"
             },
             "origin_date": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Product origin date at the source (OData OriginDate)"
+                "locale": "utc"
             },
             "eviction_date": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Date the product is scheduled to be evicted from the LTA interface (OData EvictionDate)"
+                "locale": "utc"
             },
             "start_date": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Product sensing start date (OData ContentDate.Start)"
+                "locale": "utc"
             },
             "end_date": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Product sensing end date (OData ContentDate.End)"
+                "locale": "utc"
             },
             "interface_name": {
-                "type": "keyword",
-                "description": "Name of the LTA interface instance the product was collected from"
+                "type": "keyword"
             },
             "production_service_type": {
-                "type": "keyword",
-                "description": "Type of the production service providing the product (LTA)"
+                "type": "keyword"
             },
             "production_service_name": {
-                "type": "keyword",
-                "description": "Name of the LTA production service instance providing the product"
+                "type": "keyword"
             },
             "modification_date": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Last modification date of the product on the LTA interface (OData ModificationDate)"
+                "locale": "utc"
             }
         },
         "_meta": {

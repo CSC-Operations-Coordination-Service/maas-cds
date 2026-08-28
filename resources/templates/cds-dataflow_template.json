@@ -14,50 +14,39 @@
     "mappings": {
         "properties": {
             "product_type": {
-                "type": "keyword",
-                "description": "Product type described by this dataflow entry"
+                "type": "keyword"
             },
             "mission": {
-                "type": "keyword",
-                "description": "Mission the product type belongs to (e.g. S1, S2, S3)"
+                "type": "keyword"
             },
             "level": {
-                "type": "keyword",
-                "description": "Processing level of the product type"
+                "type": "keyword"
             },
             "origin_level": {
-                "type": "keyword",
-                "description": "Origin processing level from which the product is derived"
+                "type": "keyword"
             },
             "instrument": {
-                "type": "keyword",
-                "description": "Instrument that produces the product type"
+                "type": "keyword"
             },
             "mode": {
-                "type": "keyword",
-                "description": "Acquisition mode of the product type"
+                "type": "keyword"
             },
             "type": {
-                "type": "keyword",
-                "description": "Type category of the dataflow entry"
+                "type": "keyword"
             },
             "groups": {
-                "type": "keyword",
-                "description": "Groups the product type belongs to"
+                "type": "keyword"
             },
             "published_by": {
-                "type": "keyword",
-                "description": "Interfaces or services that publish the product type"
+                "type": "keyword"
             },
             "consumed_by": {
-                "type": "keyword",
-                "description": "Interfaces or services that consume the product type"
+                "type": "keyword"
             },
             "ingestionTime": {
                 "type": "date",
                 "format": "date_time",
-                "locale": "utc",
-                "description": "Ingestion time of this dataflow document"
+                "locale": "utc"
             }
         },
         "_meta": {

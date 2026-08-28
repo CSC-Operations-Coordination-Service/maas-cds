@@ -16,56 +16,43 @@
             "ingestionTime": {
                 "type": "date",
                 "format": "date_time",
-                "locale": "utc",
-                "description": "Timestamp when the collector ingested this record into MAAS"
+                "locale": "utc"
             },
             "reportName": {
-                "type": "keyword",
-                "description": "Name of the source Databudget CSV report the record was extracted from"
+                "type": "keyword"
             },
             "reportFolder": {
-                "type": "keyword",
-                "description": "Folder path of the source Databudget report file"
+                "type": "keyword"
             },
             "type": {
-                "type": "keyword",
-                "description": "Product type from the 'TYPE' column of the Databudget CSV"
+                "type": "keyword"
             },
             "num_day": {
-                "type": "keyword",
-                "description": "Expected number of products per day from the '#Num/day' column"
+                "type": "keyword"
             },
             "level": {
-                "type": "keyword",
-                "description": "Processing level from the 'Level' column ('AUX' for the auxiliary databudget)"
+                "type": "keyword"
             },
             "timeliness": {
-                "type": "keyword",
-                "description": "Timeliness from the 'Timeliness' column ('AUX' for the auxiliary databudget)"
+                "type": "keyword"
             },
             "produced": {
-                "type": "keyword",
-                "description": "Expected produced volume/count from the 'P' column"
+                "type": "keyword"
             },
             "archived": {
-                "type": "keyword",
-                "description": "Expected archived volume/count from the 'A' column"
+                "type": "keyword"
             },
             "disseminated": {
-                "type": "keyword",
-                "description": "Expected disseminated volume/count from the 'D' column"
+                "type": "keyword"
             },
             "volume_day": {
-                "type": "keyword",
-                "description": "Expected volume per day in GB from the 'Volume per day [GB]' column"
+                "type": "keyword"
             },
             "mission": {
-                "type": "keyword",
-                "description": "Mission from the 'Mission' column of the Databudget CSV"
+                "type": "keyword"
             },
             "version": {
-                "type": "keyword",
-                "description": "Databudget version from the 'Version' column"
+                "type": "keyword"
             }
         },
         "_meta": {

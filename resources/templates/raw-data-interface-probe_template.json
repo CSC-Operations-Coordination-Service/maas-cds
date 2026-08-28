@@ -16,51 +16,40 @@
             "ingestionTime": {
                 "type": "date",
                 "format": "date_time",
-                "locale": "utc",
-                "description": "Timestamp when the collector ingested this record into MAAS"
+                "locale": "utc"
             },
             "reportName": {
-                "type": "keyword",
-                "description": "Name of the source monitoring report the record was extracted from"
+                "type": "keyword"
             },
             "reportFolder": {
-                "type": "keyword",
-                "description": "Folder path of the source monitoring report file"
+                "type": "keyword"
             },
             "probe_time_start": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Probe start time from the monitoring 'probe_time_start' field"
+                "locale": "utc"
             },
             "probe_time_stop": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Probe stop time from the monitoring 'probe_time_end' field"
+                "locale": "utc"
             },
             "probe_duration": {
-                "type": "float",
-                "description": "Probe duration from the monitoring 'probe_duration' field"
+                "type": "float"
             },
             "status": {
-                "type": "keyword",
-                "description": "Probe result status from the monitoring 'status' field"
+                "type": "keyword"
             },
             "interface_name": {
-                "type": "keyword",
-                "description": "Name of the probed interface from the monitoring 'interface_name' field"
+                "type": "keyword"
             },
             "details": {
-                "type": "keyword",
-                "description": "Probe details from the monitoring 'details' field"
+                "type": "keyword"
             },
             "status_code": {
-                "type": "integer",
-                "description": "Probe HTTP/response status code from the monitoring 'status_code' field"
+                "type": "integer"
             },
             "most_recent_modification_date": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Most recent modification date from the monitoring 'most_recent_modification_date' field"
+                "locale": "utc"
             }
         },
         "_meta": {

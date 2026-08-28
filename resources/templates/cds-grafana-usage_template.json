@@ -16,24 +16,19 @@
             "access_date": {
                 "type": "date",
                 "format": "date_time",
-                "locale": "utc",
-                "description": "Date and time the Grafana dashboard was accessed"
+                "locale": "utc"
             },
             "user": {
-                "type": "keyword",
-                "description": "User who accessed the Grafana dashboard"
+                "type": "keyword"
             },
             "interface_name": {
-                "type": "keyword",
-                "description": "Name of the interface associated with the access"
+                "type": "keyword"
             },
             "dashboard_title": {
-                "type": "keyword",
-                "description": "Title of the accessed Grafana dashboard"
+                "type": "keyword"
             },
             "dashboard_uid": {
-                "type": "keyword",
-                "description": "Unique identifier of the accessed Grafana dashboard"
+                "type": "keyword"
             }
         },
         "_meta": {

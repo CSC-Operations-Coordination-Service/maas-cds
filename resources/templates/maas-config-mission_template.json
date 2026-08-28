@@ -11,16 +11,13 @@
     "mappings": {
         "properties": {
             "display_name": {
-                "type": "keyword",
-                "description": "Human-readable display name of the mission"
+                "type": "keyword"
             },
             "short_name": {
-                "type": "keyword",
-                "description": "Short name of the mission"
+                "type": "keyword"
             },
             "key": {
-                "type": "keyword",
-                "description": "Unique key of the mission configuration entry"
+                "type": "keyword"
             }
         },
         "_meta": {}

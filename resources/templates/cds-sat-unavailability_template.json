@@ -16,83 +16,64 @@
             "updateTime": {
                 "type": "date",
                 "format": "date_time",
-                "locale": "utc",
-                "description": "Date and time when this consolidated unavailability document was last updated by the consolidation engine"
+                "locale": "utc"
             },
             "key": {
-                "type": "keyword",
-                "description": "Document identifier computed as an MD5 hash of mission, subsystem and start_time"
+                "type": "keyword"
             },
             "mission": {
-                "type": "keyword",
-                "description": "Mission identifier derived from the satellite unit (e.g. S1, S2)"
+                "type": "keyword"
             },
             "satellite_unit": {
-                "type": "keyword",
-                "description": "Satellite unit affected by the unavailability (e.g. S1A)"
+                "type": "keyword"
             },
             "file_name": {
-                "type": "keyword",
-                "description": "Name of the source unavailability file the record was ingested from"
+                "type": "keyword"
             },
             "unavailability_reference": {
-                "type": "keyword",
-                "description": "Reference identifier of the unavailability declaration"
+                "type": "keyword"
             },
             "unavailability_type": {
-                "type": "keyword",
-                "description": "Type of unavailability as declared in the source file"
+                "type": "keyword"
             },
             "subsystem": {
-                "type": "keyword",
-                "description": "Satellite subsystem concerned by the unavailability"
+                "type": "keyword"
             },
             "start_time": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Start date and time of the unavailability period"
+                "locale": "utc"
             },
             "start_orbit": {
-                "type": "keyword",
-                "description": "Orbit number at the start of the unavailability, with leading zeros stripped"
+                "type": "keyword"
             },
             "start_anx_offset": {
-                "type": "integer",
-                "description": "Offset from the ascending node crossing at the start of the unavailability"
+                "type": "integer"
             },
             "end_time": {
                 "type": "date",
-                "locale": "utc",
-                "description": "End date and time of the unavailability period, empty while the unavailability is still ongoing"
+                "locale": "utc"
             },
             "end_orbit": {
-                "type": "keyword",
-                "description": "Orbit number at the end of the unavailability, with leading zeros stripped"
+                "type": "keyword"
             },
             "end_anx_offset": {
-                "type": "integer",
-                "description": "Offset from the ascending node crossing at the end of the unavailability"
+                "type": "integer"
             },
             "type": {
-                "type": "keyword",
-                "description": "Category of the unavailability record as declared in the source file"
+                "type": "keyword"
             },
             "comment": {
-                "type": "keyword",
-                "description": "Free-text comment associated with the unavailability"
+                "type": "keyword"
             },
             "raw_data_ingestion_time": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Ingestion time of the source raw unavailability data, used to arbitrate between concurrent updates"
+                "locale": "utc"
             },
             "unavailability_duration": {
-                "type": "long",
-                "description": "Duration of the unavailability period in microseconds, computed from start_time and end_time"
+                "type": "long"
             },
             "real_causal_anomaly": {
-                "type": "keyword",
-                "description": "Set to PDHT when an S1 OCP or SAR unavailability shares its file with a PDHT subsystem entry, indicating the real causal anomaly"
+                "type": "keyword"
             }
         },
         "_meta": {

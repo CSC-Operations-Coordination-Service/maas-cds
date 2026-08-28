@@ -16,138 +16,106 @@
             "ingestionTime": {
                 "type": "date",
                 "format": "date_time",
-                "locale": "utc",
-                "description": "Timestamp when the raw product was ingested into the system"
+                "locale": "utc"
             },
             "reportName": {
-                "type": "keyword",
-                "description": "Base file name of the ingested APS report"
+                "type": "keyword"
             },
             "reportFolder": {
-                "type": "keyword",
-                "description": "Source folder or path where the report file was collected"
+                "type": "keyword"
             },
             "satellite_id": {
-                "type": "keyword",
-                "description": "Satellite unit identifier, derived from the Satellite column and normalized to an S-prefixed unit code"
+                "type": "keyword"
             },
             "mission": {
-                "type": "keyword",
-                "description": "Mission identifier, derived from the Satellite column and normalized to an S-prefixed mission code"
+                "type": "keyword"
             },
             "doy": {
-                "type": "integer",
-                "description": "Day of year of the acquisition pass (from the DOY column)"
+                "type": "integer"
             },
             "downlink_orbit": {
-                "type": "keyword",
-                "description": "Downlink orbit number of the pass (from the Downlink Orbit column)"
+                "type": "keyword"
             },
             "antenna_id": {
-                "type": "keyword",
-                "description": "Identifier of the antenna used for the pass (from the Antenna ID column)"
+                "type": "keyword"
             },
             "antenna_status": {
-                "type": "keyword",
-                "description": "Operational status of the antenna for the pass (from the Antenna status column)"
+                "type": "keyword"
             },
             "front_end_id": {
-                "type": "keyword",
-                "description": "Identifier of the front-end equipment used for the pass (from the Front End ID column)"
+                "type": "keyword"
             },
             "front_end_status": {
-                "type": "keyword",
-                "description": "Operational status of the front-end equipment (from the Front End status column)"
+                "type": "keyword"
             },
             "planned_data_start": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Planned start time of the data acquisition (from the Planned Data start column)"
+                "locale": "utc"
             },
             "planned_data_stop": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Planned stop time of the data acquisition (from the Planned Data stop column)"
+                "locale": "utc"
             },
             "first_frame_start": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Time of the first acquired frame (from the First Frame start column)"
+                "locale": "utc"
             },
             "last_frame_stop": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Time of the last acquired frame (from the Last Frame stop column)"
+                "locale": "utc"
             },
             "delivery_push_status": {
-                "type": "keyword",
-                "description": "Status of the delivery push for the pass (from the Delivery Push status column)"
+                "type": "keyword"
             },
             "start_delivery": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Start time of the delivery (from the Start Delivery column)"
+                "locale": "utc"
             },
             "stop_delivery": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Stop time of the delivery (from the Stop Delivery column)"
+                "locale": "utc"
             },
             "number_of_chunks": {
-                "type": "integer",
-                "description": "Number of chunks delivered for the pass (from the Number of chunks column)"
+                "type": "integer"
             },
             "overall_data_volume": {
-                "type": "long",
-                "description": "Overall data volume of the pass (from the Overall Data Volume column)"
+                "type": "long"
             },
             "overall_number_of_downlinked_frames": {
-                "type": "long",
-                "description": "Total number of downlinked frames (from the Overall Number of downlinked frames column)"
+                "type": "long"
             },
             "overall_number_of_bad_downlinked_frames": {
-                "type": "long",
-                "description": "Total number of bad downlinked frames (from the Overall Number of bad downlinked frames column)"
+                "type": "long"
             },
             "fer_downlink": {
-                "type": "float",
-                "description": "Frame Error Rate for the downlink (from the FER_Downlink column)"
+                "type": "float"
             },
             "overall_number_of_data_acquired_frames": {
-                "type": "long",
-                "description": "Total number of data-acquired frames (from the Overall Number of data acquired frames column)"
+                "type": "long"
             },
             "overall_number_of_bad_data_acquired_frames": {
-                "type": "long",
-                "description": "Total number of bad data-acquired frames (from the Overall Number of bad data acquired frames column)"
+                "type": "long"
             },
             "fer_data": {
-                "type": "float",
-                "description": "Frame Error Rate for the acquired data (from the FER_Data column)"
+                "type": "float"
             },
             "notes": {
-                "type": "keyword",
-                "description": "Free-text notes about the pass (from the Notes column)"
+                "type": "keyword"
             },
             "interface_name": {
-                "type": "keyword",
-                "description": "Interface that provided the product, set to a per-station constant (e.g. DDP_S5P-DLR_DAILY, DDP_INS-Inuvik)"
+                "type": "keyword"
             },
             "production_service_type": {
-                "type": "keyword",
-                "description": "Production service type, set to the constant DDP"
+                "type": "keyword"
             },
             "production_service_name": {
-                "type": "keyword",
-                "description": "Production service name, set to a per-station constant (e.g. S5P-DLR, INS-Inuvik)"
+                "type": "keyword"
             },
             "ground_station": {
-                "type": "keyword",
-                "description": "Ground station identifier, set to a per-station constant (e.g. DLR, INS)"
+                "type": "keyword"
             },
             "report_type": {
-                "type": "keyword",
-                "description": "Type of the report, set to the constant daily"
+                "type": "keyword"
             }
         },
         "_meta": {

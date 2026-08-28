@@ -16,16 +16,13 @@
             "timestamp": {
                 "type": "date",
                 "format": "date_time",
-                "locale": "utc",
-                "description": "Timestamp of the download quota record"
+                "locale": "utc"
             },
             "service_name": {
-                "type": "keyword",
-                "description": "Name of the LTA service the quota applies to"
+                "type": "keyword"
             },
             "daily_download_quota": {
-                "type": "long",
-                "description": "Daily download quota for the service"
+                "type": "long"
             }
         },
         "_meta": {

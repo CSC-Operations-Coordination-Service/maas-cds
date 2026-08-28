@@ -16,55 +16,43 @@
             "ingestionTime": {
                 "type": "date",
                 "format": "date_time",
-                "locale": "utc",
-                "description": "Timestamp when the collector ingested this record into MAAS"
+                "locale": "utc"
             },
             "reportName": {
-                "type": "keyword",
-                "description": "Source Jira issue URL (issue 'self' link) the record was extracted from"
+                "type": "keyword"
             },
             "reportFolder": {
-                "type": "keyword",
-                "description": "Folder path of the source report file"
+                "type": "keyword"
             },
             "key": {
-                "type": "keyword",
-                "description": "Jira issue key of the deletion issue (from the issue 'key' field)"
+                "type": "keyword"
             },
             "created": {
                 "type": "date",
                 "format": "date_time",
-                "locale": "utc",
-                "description": "Creation date of the Jira deletion issue"
+                "locale": "utc"
             },
             "status": {
-                "type": "keyword",
-                "description": "Status of the Jira deletion issue"
+                "type": "keyword"
             },
             "satellite": {
-                "type": "keyword",
-                "description": "Satellite concerned by the deletion issue"
+                "type": "keyword"
             },
             "interface_name": {
-                "type": "keyword",
-                "description": "Name of the source Jira deletion interface (e.g. Jira_OMCS_Deletion_CDSE, Jira_OMCS_Deletion_LTA)"
+                "type": "keyword"
             },
             "deletion_interfaces": {
-                "type": "keyword",
-                "description": "Interfaces from which the product must be deleted (from the Jira deletion-interfaces custom field)"
+                "type": "keyword"
             },
             "deletion_date": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Requested deletion date (from the Jira deletion-date custom field)"
+                "locale": "utc"
             },
             "deletion_cause": {
-                "type": "keyword",
-                "description": "Cause of the deletion (from the Jira deletion-cause custom field)"
+                "type": "keyword"
             },
             "interface_type": {
-                "type": "keyword",
-                "description": "Type of interface targeted by the deletion ('DD' for datahub, 'LTA' for long term archive)"
+                "type": "keyword"
             }
         },
         "_meta": {

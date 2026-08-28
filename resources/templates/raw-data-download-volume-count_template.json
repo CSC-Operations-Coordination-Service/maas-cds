@@ -16,48 +16,37 @@
             "ingestionTime": {
                 "type": "date",
                 "format": "date_time",
-                "locale": "utc",
-                "description": "Timestamp when the collector ingested this record into MAAS"
+                "locale": "utc"
             },
             "reportName": {
-                "type": "keyword",
-                "description": "Name of the source report the record was extracted from"
+                "type": "keyword"
             },
             "reportFolder": {
-                "type": "keyword",
-                "description": "Folder path of the source report file"
+                "type": "keyword"
             },
             "interface_name": {
-                "type": "keyword",
-                "description": "Name of the interface the download volume statistics relate to"
+                "type": "keyword"
             },
             "mission": {
-                "type": "keyword",
-                "description": "Mission the download volume statistics relate to"
+                "type": "keyword"
             },
             "instrument": {
-                "type": "keyword",
-                "description": "Instrument the download volume statistics relate to"
+                "type": "keyword"
             },
             "type": {
-                "type": "keyword",
-                "description": "Product type the download volume statistics relate to"
+                "type": "keyword"
             },
             "volume": {
-                "type": "long",
-                "description": "Total downloaded volume"
+                "type": "long"
             },
             "number": {
-                "type": "long",
-                "description": "Total number of downloaded products"
+                "type": "long"
             },
             "volume_increase": {
-                "type": "long",
-                "description": "Increase in downloaded volume compared to the previous count"
+                "type": "long"
             },
             "number_increase": {
-                "type": "long",
-                "description": "Increase in the number of downloaded products compared to the previous count"
+                "type": "long"
             }
         },
         "_meta": {

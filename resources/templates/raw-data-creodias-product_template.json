@@ -16,82 +16,64 @@
             "ingestionTime": {
                 "type": "date",
                 "format": "date_time",
-                "locale": "utc",
-                "description": "Timestamp when the raw report was ingested into the dashboard by the collector"
+                "locale": "utc"
             },
             "reportName": {
-                "type": "keyword",
-                "description": "Name of the source report file from which this record was extracted"
+                "type": "keyword"
             },
             "reportFolder": {
-                "type": "keyword",
-                "description": "Folder or path of the source report file from which this record was extracted"
+                "type": "keyword"
             },
             "product_id": {
-                "type": "keyword",
-                "description": "Product identifier from the CreoDIAS interface (OData Id)"
+                "type": "keyword"
             },
             "product_name": {
-                "type": "keyword",
-                "description": "Product file name from the CreoDIAS interface (OData Name)"
+                "type": "keyword"
             },
             "content_length": {
-                "type": "long",
-                "description": "Product file size in bytes (OData ContentLength)"
+                "type": "long"
             },
             "ingestion_date": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Date the product was ingested into the CreoDIAS interface (IngestionDate)"
+                "locale": "utc"
             },
             "publication_date": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Date the product was published on the CreoDIAS interface (PublicationDate)"
+                "locale": "utc"
             },
             "modification_date": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Last modification date of the product on the CreoDIAS interface (ModificationDate)"
+                "locale": "utc"
             },
             "start_date": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Product sensing start date (ContentDate Start)"
+                "locale": "utc"
             },
             "end_date": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Product sensing end date (ContentDate End)"
+                "locale": "utc"
             },
             "origin_date": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Product origin date at the source (OriginDate)"
+                "locale": "utc"
             },
             "interface_name": {
-                "type": "keyword",
-                "description": "Name of the CreoDIAS interface instance the product was collected from"
+                "type": "keyword"
             },
             "production_service_type": {
-                "type": "keyword",
-                "description": "Type of the production service providing the product (DD)"
+                "type": "keyword"
             },
             "production_service_name": {
-                "type": "keyword",
-                "description": "Name of the CreoDIAS production service instance providing the product"
+                "type": "keyword"
             },
             "footprint": {
-                "type": "keyword",
-                "description": "Geographic footprint of the product as reported by the CreoDIAS interface"
+                "type": "keyword"
             },
             "online": {
-                "type": "boolean",
-                "description": "Whether the product is currently online and available for download on the CreoDIAS interface"
+                "type": "boolean"
             },
             "s3_path": {
-                "type": "keyword",
-                "description": "Path of the product in the CreoDIAS S3 object storage"
+                "type": "keyword"
             }
         },
         "_meta": {

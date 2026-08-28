@@ -16,131 +16,102 @@
             "ingestionTime": {
                 "type": "date",
                 "format": "date_time",
-                "locale": "utc",
-                "description": "Timestamp when this HKTM production completeness document was ingested (UTC), used as partition field"
+                "locale": "utc"
             },
             "reportName": {
-                "type": "keyword",
-                "description": "Name of the source mission plan report from which the HKTM downlink was consolidated"
+                "type": "keyword"
             },
             "reportFolder": {
-                "type": "keyword",
-                "description": "Folder of the source mission plan report"
+                "type": "keyword"
             },
             "satellite_unit": {
-                "type": "keyword",
-                "description": "Satellite unit performing the HKTM downlink (e.g. S1A, S2B)"
+                "type": "keyword"
             },
             "mission": {
-                "type": "keyword",
-                "description": "Mission the HKTM downlink belongs to (e.g. S1, S2)"
+                "type": "keyword"
             },
             "datatake_id": {
-                "type": "keyword",
-                "description": "Identifier of the datatake associated with the HKTM downlink"
+                "type": "keyword"
             },
             "x_on": {
                 "type": "date",
-                "locale": "utc",
-                "description": "X-Band downlink switch-on time (UTC)"
+                "locale": "utc"
             },
             "x_off": {
                 "type": "date",
-                "locale": "utc",
-                "description": "X-Band downlink switch-off time (UTC)"
+                "locale": "utc"
             },
             "effective_downlink_start": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Effective start of the HKTM downlink, used as reference time to correlate produced HKTM products (UTC)"
+                "locale": "utc"
             },
             "effective_downlink_stop": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Effective end of the HKTM downlink (UTC)"
+                "locale": "utc"
             },
             "downlink_start": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Planned start of the HKTM downlink (UTC)"
+                "locale": "utc"
             },
             "downlink_stop": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Planned end of the HKTM downlink (UTC)"
+                "locale": "utc"
             },
             "downlink_duration": {
-                "type": "long",
-                "description": "Duration of the HKTM downlink in microseconds"
+                "type": "long"
             },
             "latency": {
-                "type": "long",
-                "description": "Latency of the HKTM downlink"
+                "type": "long"
             },
             "station": {
-                "type": "keyword",
-                "description": "Ground station performing the HKTM downlink"
+                "type": "keyword"
             },
             "downlink_absolute_orbit": {
-                "type": "keyword",
-                "description": "Absolute orbit number during which the HKTM downlink occurred"
+                "type": "keyword"
             },
             "absolute_orbit": {
-                "type": "keyword",
-                "description": "Absolute orbit number associated with the HKTM sensing"
+                "type": "keyword"
             },
             "partial": {
-                "type": "keyword",
-                "description": "Flag indicating whether the HKTM downlink is partial"
+                "type": "keyword"
             },
             "interface_name": {
-                "type": "keyword",
-                "description": "Name of the interface that provided the source report"
+                "type": "keyword"
             },
             "acquisition_start": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Start of the HKTM acquisition window (UTC)"
+                "locale": "utc"
             },
             "acquisition_stop": {
                 "type": "date",
-                "locale": "utc",
-                "description": "End of the HKTM acquisition window (UTC)"
+                "locale": "utc"
             },
             "acquisition_duration": {
-                "type": "long",
-                "description": "Duration of the HKTM acquisition in microseconds"
+                "type": "long"
             },
             "number_of_scenes": {
-                "type": "long",
-                "description": "Number of scenes associated with the HKTM downlink"
+                "type": "long"
             },
             "completeness": {
-                "type": "long",
-                "description": "HKTM production completeness indicator: 1 if the expected HKTM product was produced, 0 otherwise"
+                "type": "long"
             },
             "downlink_execution_time": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Execution time of the HKTM downlink (UTC)"
+                "locale": "utc"
             },
             "related_document_id": {
-                "type": "keyword",
-                "description": "Identifier of the produced HKTM product proving completeness"
+                "type": "keyword"
             },
             "related_document_name": {
-                "type": "keyword",
-                "description": "Name of the produced HKTM product proving completeness"
+                "type": "keyword"
             },
             "fos_pushing_date_backup": {
                 "type": "date",
-                "locale": "utc",
-                "description": "FOS backup pushing date of the related HKTM product (UTC)"
+                "locale": "utc"
             },
             "fos_pushing_date_nominal": {
                 "type": "date",
-                "locale": "utc",
-                "description": "FOS nominal pushing date of the related HKTM product (UTC)"
+                "locale": "utc"
             }
         },
         "_meta": {

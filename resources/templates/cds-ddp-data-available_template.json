@@ -16,60 +16,47 @@
             "updateTime": {
                 "type": "date",
                 "format": "date_time",
-                "locale": "utc",
-                "description": "Timestamp of the last update of this consolidated document"
+                "locale": "utc"
             },
             "session_id": {
-                "type": "keyword",
-                "description": "Identifier of the DDP data-available session"
+                "type": "keyword"
             },
             "time_start": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Start time of the data availability period"
+                "locale": "utc"
             },
             "time_stop": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Stop time of the data availability period"
+                "locale": "utc"
             },
             "time_created": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Time the data was created on the interface"
+                "locale": "utc"
             },
             "time_finished": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Time the data transfer finished"
+                "locale": "utc"
             },
             "transfer_time": {
-                "type": "long",
-                "description": "Duration of the data transfer"
+                "type": "long"
             },
             "mission": {
-                "type": "keyword",
-                "description": "Mission the data belongs to (e.g. S1, S2, S3)"
+                "type": "keyword"
             },
             "satellite_unit": {
-                "type": "keyword",
-                "description": "Satellite unit the data belongs to (e.g. S1A, S2B)"
+                "type": "keyword"
             },
             "data_size": {
-                "type": "long",
-                "description": "Size of the available data in bytes"
+                "type": "long"
             },
             "interface_name": {
-                "type": "keyword",
-                "description": "Name of the interface that provided the data"
+                "type": "keyword"
             },
             "production_service_type": {
-                "type": "keyword",
-                "description": "Type of the production service that provided the data"
+                "type": "keyword"
             },
             "production_service_name": {
-                "type": "keyword",
-                "description": "Name of the production service that provided the data"
+                "type": "keyword"
             }
         },
         "_meta": {

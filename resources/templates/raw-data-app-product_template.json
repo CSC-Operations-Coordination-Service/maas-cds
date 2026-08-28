@@ -16,58 +16,45 @@
             "ingestionTime": {
                 "type": "date",
                 "format": "date_time",
-                "locale": "utc",
-                "description": "Timestamp when the collector ingested this record into MAAS"
+                "locale": "utc"
             },
             "reportName": {
-                "type": "keyword",
-                "description": "Name of the source report the record was extracted from"
+                "type": "keyword"
             },
             "reportFolder": {
-                "type": "keyword",
-                "description": "Folder path of the source report file"
+                "type": "keyword"
             },
             "satellite_id": {
-                "type": "keyword",
-                "description": "Identifier of the satellite for the acquisition pass"
+                "type": "keyword"
             },
             "station_id": {
-                "type": "keyword",
-                "description": "Identifier of the ground/acquisition station"
+                "type": "keyword"
             },
             "acquisition_id": {
-                "type": "keyword",
-                "description": "Identifier of the acquisition"
+                "type": "keyword"
             },
             "downlink_orbit": {
-                "type": "keyword",
-                "description": "Orbit number of the X-Band downlink"
+                "type": "keyword"
             },
             "downlink_start_date": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Start date and time of the downlink"
+                "locale": "utc"
             },
             "downlink_stop_date": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Stop date and time of the downlink"
+                "locale": "utc"
             },
             "downlink_duration": {
-                "type": "long",
-                "description": "Duration of the downlink"
+                "type": "long"
             },
             "interface_name": {
-                "type": "keyword",
-                "description": "Name of the source interface providing the acquisition data"
+                "type": "keyword"
             },
             "production_service_type": {
-                "type": "keyword",
-                "description": "Type of the production service that provided the record"
+                "type": "keyword"
             },
             "production_service_name": {
-                "type": "keyword",
-                "description": "Name of the production service that provided the record"
+                "type": "keyword"
             }
         },
         "_meta": {

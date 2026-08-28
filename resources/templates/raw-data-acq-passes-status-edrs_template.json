@@ -14,141 +14,108 @@
             "ingestionTime": {
                 "type": "date",
                 "format": "date_time",
-                "locale": "utc",
-                "description": "Timestamp when the raw product was ingested into the system"
+                "locale": "utc"
             },
             "reportName": {
-                "type": "keyword",
-                "description": "Base file name of the ingested EDRS acquisition passes status report"
+                "type": "keyword"
             },
             "reportFolder": {
-                "type": "keyword",
-                "description": "Source folder or path where the report file was collected"
+                "type": "keyword"
             },
             "file_name": {
-                "type": "keyword",
-                "description": "File name of the source report"
+                "type": "keyword"
             },
             "description": {
-                "type": "text",
-                "description": "Free-text description of the report"
+                "type": "text"
             },
             "notes": {
-                "type": "text",
-                "description": "Additional free-text notes attached to the report"
+                "type": "text"
             },
             "file_class": {
-                "type": "keyword",
-                "description": "File class of the source report"
+                "type": "keyword"
             },
             "file_type": {
-                "type": "keyword",
-                "description": "File type of the source report"
+                "type": "keyword"
             },
             "creation_date": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Creation date of the report"
+                "locale": "utc"
             },
             "source_system": {
-                "type": "keyword",
-                "description": "System that produced the source report"
+                "type": "keyword"
             },
             "source_creator": {
-                "type": "keyword",
-                "description": "Identifier of the entity that created the source report"
+                "type": "keyword"
             },
             "source_creator_version": {
-                "type": "keyword",
-                "description": "Version of the entity that created the source report"
+                "type": "keyword"
             },
             "source_creation_date": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Creation date of the source report as declared by the producer"
+                "locale": "utc"
             },
             "session_id_data": {
-                "type": "keyword",
-                "description": "Identifier of the EDRS acquisition/data session"
+                "type": "keyword"
             },
             "user_id": {
-                "type": "keyword",
-                "description": "Identifier of the user associated with the acquisition session"
+                "type": "keyword"
             },
             "direction": {
-                "type": "keyword",
-                "description": "Direction of the acquisition pass"
+                "type": "keyword"
             },
             "trans_mode": {
-                "type": "keyword",
-                "description": "Transmission mode used for the session"
+                "type": "keyword"
             },
             "leo_satellite_id": {
-                "type": "keyword",
-                "description": "Identifier of the LEO (low Earth orbit) satellite whose data is relayed"
+                "type": "keyword"
             },
             "geo_satellite_id": {
-                "type": "keyword",
-                "description": "Identifier of the GEO (geostationary EDRS relay) satellite"
+                "type": "keyword"
             },
             "priority": {
-                "type": "keyword",
-                "description": "Priority assigned to the acquisition session"
+                "type": "keyword"
             },
             "start_time": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Start time of the acquisition session"
+                "locale": "utc"
             },
             "stop_time": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Stop time of the acquisition session"
+                "locale": "utc"
             },
             "duration": {
-                "type": "keyword",
-                "description": "Duration of the acquisition session"
+                "type": "keyword"
             },
             "reception_profile_id": {
-                "type": "keyword",
-                "description": "Identifier of the reception profile used for the session"
+                "type": "keyword"
             },
             "emergency_flag": {
-                "type": "keyword",
-                "description": "Flag indicating whether the session was handled as an emergency"
+                "type": "keyword"
             },
             "dcsu_id": {
-                "type": "keyword",
-                "description": "Identifier of the DCSU (data collection/storage unit) involved in the session"
+                "type": "keyword"
             },
             "execution_status": {
-                "type": "keyword",
-                "description": "Execution status of the acquisition session"
+                "type": "keyword"
             },
             "link_session_completion_time": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Completion time of the link session"
+                "locale": "utc"
             },
             "link_session_fer": {
-                "type": "float",
-                "description": "Frame Error Rate of the link session"
+                "type": "float"
             },
             "number_of_delivered_cadu": {
-                "type": "long",
-                "description": "Number of CADUs (Channel Access Data Units) delivered during the session"
+                "type": "long"
             },
             "number_of_missing_cadu": {
-                "type": "long",
-                "description": "Number of CADUs (Channel Access Data Units) missing during the session"
+                "type": "long"
             },
             "production_service_type": {
-                "type": "keyword",
-                "description": "Production service type providing the report"
+                "type": "keyword"
             },
             "production_service_name": {
-                "type": "keyword",
-                "description": "Production service name providing the report"
+                "type": "keyword"
             }
         },
         "_meta": {}

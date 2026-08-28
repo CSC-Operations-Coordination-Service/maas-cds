@@ -16,267 +16,204 @@
             "updateTime": {
                 "type": "date",
                 "format": "date_time",
-                "locale": "utc",
-                "description": "Timestamp of the last update of this document"
+                "locale": "utc"
             },
             "reportName": {
-                "type": "keyword",
-                "description": "Name of the source report the document was ingested from"
+                "type": "keyword"
             },
             "reportFolder": {
-                "type": "keyword",
-                "description": "Folder of the source report the document was ingested from"
+                "type": "keyword"
             },
             "session_id": {
-                "type": "keyword",
-                "description": "Identifier of the CADIP acquisition session, used as the consolidated document identifier"
+                "type": "keyword"
             },
             "num_channels": {
-                "type": "long",
-                "description": "Number of channels used during the acquisition session"
+                "type": "long"
             },
             "satellite_id": {
-                "type": "keyword",
-                "description": "Identifier of the acquiring satellite"
+                "type": "keyword"
             },
             "mission": {
-                "type": "keyword",
-                "description": "Mission the satellite belongs to (e.g. S1, S2), derived from the satellite identifier"
+                "type": "keyword"
             },
             "ground_station": {
-                "type": "keyword",
-                "description": "Ground station where the acquisition pass was performed"
+                "type": "keyword"
             },
             "station_unit_id": {
-                "type": "keyword",
-                "description": "Identifier of the ground station unit"
+                "type": "keyword"
             },
             "station_id": {
-                "type": "keyword",
-                "description": "Identifier of the ground station"
+                "type": "keyword"
             },
             "acquisition_id": {
-                "type": "keyword",
-                "description": "Identifier of the acquisition"
+                "type": "keyword"
             },
             "publication_date": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Publication date of the session on the CADIP interface"
+                "locale": "utc"
             },
             "downlink_orbit": {
-                "type": "keyword",
-                "description": "Downlink orbit number of the acquisition pass"
+                "type": "keyword"
             },
             "antenna_id": {
-                "type": "keyword",
-                "description": "Identifier of the antenna used for the acquisition"
+                "type": "keyword"
             },
             "antenna_status": {
-                "type": "boolean",
-                "description": "Status of the antenna during the acquisition pass"
+                "type": "boolean"
             },
             "front_end_id": {
-                "type": "keyword",
-                "description": "Identifier of the front-end used for the acquisition"
+                "type": "keyword"
             },
             "retransfer": {
-                "type": "boolean",
-                "description": "Flag indicating whether the session is a retransfer"
+                "type": "boolean"
             },
             "front_end_status": {
-                "type": "boolean",
-                "description": "Status of the front-end during the acquisition pass"
+                "type": "boolean"
             },
             "planned_data_start": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Planned start time of the data acquisition"
+                "locale": "utc"
             },
             "planned_data_stop": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Planned stop time of the data acquisition"
+                "locale": "utc"
             },
             "delivery_bitrate": {
-                "type": "float",
-                "description": "Computed delivery bitrate of the acquisition pass"
+                "type": "float"
             },
             "downlink_start": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Start time of the downlink"
+                "locale": "utc"
             },
             "downlink_stop": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Stop time of the downlink"
+                "locale": "utc"
             },
             "downlink_status": {
-                "type": "boolean",
-                "description": "Status of the downlink step of the acquisition pass"
+                "type": "boolean"
             },
             "delivery_push_status": {
-                "type": "boolean",
-                "description": "Status of the delivery push step of the acquisition pass"
+                "type": "boolean"
             },
             "global_status": {
-                "type": "keyword",
-                "description": "Overall status of the acquisition pass (OK, NOK or INCOMPLETE) derived from the antenna, front-end and delivery push statuses"
+                "type": "keyword"
             },
             "interface_name": {
-                "type": "keyword",
-                "description": "Name of the interface the data was collected from"
+                "type": "keyword"
             },
             "production_service_type": {
-                "type": "keyword",
-                "description": "Type of the production service that provided the data"
+                "type": "keyword"
             },
             "production_service_name": {
-                "type": "keyword",
-                "description": "Name of the production service that provided the data"
+                "type": "keyword"
             },
             "last_attached_ticket": {
-                "type": "keyword",
-                "description": "Identifier of the last CAMS ticket attached to this acquisition pass"
+                "type": "keyword"
             },
             "last_attached_ticket_url": {
-                "type": "keyword",
-                "description": "URL of the last CAMS ticket attached to this acquisition pass"
+                "type": "keyword"
             },
             "cams_tickets": {
-                "type": "keyword",
-                "description": "Identifiers of the CAMS tickets linked to this acquisition pass"
+                "type": "keyword"
             },
             "cams_origin": {
-                "type": "keyword",
-                "description": "Origin of the linked CAMS ticket(s)"
+                "type": "keyword"
             },
             "cams_description": {
-                "type": "keyword",
-                "description": "Description of the linked CAMS ticket(s)"
+                "type": "keyword"
             },
             "ErrorTFs": {
-                "type": "long",
-                "description": "Number of transfer frames in error, aggregated across all channels"
+                "type": "long"
             },
             "CorrectedTFs": {
-                "type": "long",
-                "description": "Number of corrected transfer frames, aggregated across all channels"
+                "type": "long"
             },
             "DataTFs": {
-                "type": "long",
-                "description": "Number of data transfer frames, aggregated across all channels"
+                "type": "long"
             },
             "CorrectedDataTFs": {
-                "type": "long",
-                "description": "Number of corrected data transfer frames, aggregated across all channels"
+                "type": "long"
             },
             "TotalChunks": {
-                "type": "long",
-                "description": "Total number of chunks, aggregated across all channels"
+                "type": "long"
             },
             "AcquiredTFs": {
-                "type": "long",
-                "description": "Number of acquired transfer frames, aggregated across all channels"
+                "type": "long"
             },
             "fer_data": {
-                "type": "float",
-                "description": "Frame error rate of the data, computed as UncorrectableTFs divided by AcquiredTFs"
+                "type": "float"
             },
             "UncorrectableTFs": {
-                "type": "long",
-                "description": "Number of uncorrectable transfer frames, aggregated across all channels"
+                "type": "long"
             },
             "ErrorDataTFs": {
-                "type": "long",
-                "description": "Number of data transfer frames in error, aggregated across all channels"
+                "type": "long"
             },
             "UncorrectableDataTFs": {
-                "type": "long",
-                "description": "Number of uncorrectable data transfer frames, aggregated across all channels"
+                "type": "long"
             },
             "TotalVolume": {
-                "type": "long",
-                "description": "Total acquired data volume, aggregated across all channels"
+                "type": "long"
             },
             "delivery_start": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Earliest delivery start time across all channels"
+                "locale": "utc"
             },
             "delivery_stop": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Latest delivery stop time across all channels"
+                "locale": "utc"
             },
             "quality_infos": {
                 "type": "object",
-                "description": "Per-channel quality information of the acquisition session",
                 "properties": {
                     "Channel": {
-                        "type": "long",
-                        "description": "Channel number"
+                        "type": "long"
                     },
                     "AcquiredTFs": {
-                        "type": "long",
-                        "description": "Number of acquired transfer frames on this channel"
+                        "type": "long"
                     },
                     "SessionId": {
-                        "type": "keyword",
-                        "description": "Identifier of the acquisition session for this channel"
+                        "type": "keyword"
                     },
                     "ErrorTFs": {
-                        "type": "long",
-                        "description": "Number of transfer frames in error on this channel"
+                        "type": "long"
                     },
                     "CorrectedTFs": {
-                        "type": "long",
-                        "description": "Number of corrected transfer frames on this channel"
+                        "type": "long"
                     },
                     "UncorrectableTFs": {
-                        "type": "long",
-                        "description": "Number of uncorrectable transfer frames on this channel"
+                        "type": "long"
                     },
                     "DataTFs": {
-                        "type": "long",
-                        "description": "Number of data transfer frames on this channel"
+                        "type": "long"
                     },
                     "ErrorDataTFs": {
-                        "type": "long",
-                        "description": "Number of data transfer frames in error on this channel"
+                        "type": "long"
                     },
                     "CorrectedDataTFs": {
-                        "type": "long",
-                        "description": "Number of corrected data transfer frames on this channel"
+                        "type": "long"
                     },
                     "UncorrectableDataTFs": {
-                        "type": "long",
-                        "description": "Number of uncorrectable data transfer frames on this channel"
+                        "type": "long"
                     },
                     "DeliveryStart": {
                         "type": "date",
-                        "locale": "utc",
-                        "description": "Delivery start time on this channel"
+                        "locale": "utc"
                     },
                     "DeliveryStop": {
                         "type": "date",
-                        "locale": "utc",
-                        "description": "Delivery stop time on this channel"
+                        "locale": "utc"
                     },
                     "TotalChunks": {
-                        "type": "long",
-                        "description": "Total number of chunks on this channel"
+                        "type": "long"
                     },
                     "TotalVolume": {
-                        "type": "long",
-                        "description": "Acquired data volume on this channel"
+                        "type": "long"
                     }
                 }
             },
             "from_acq_delivery_timeliness": {
-                "type": "long",
-                "description": "Timeliness between acquisition and delivery, computed from downlink_start to delivery_stop"
+                "type": "long"
             }
         },
         "_meta": {

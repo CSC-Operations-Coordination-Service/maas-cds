@@ -21,161 +21,124 @@
             "updateTime": {
                 "type": "date",
                 "format": "date_time",
-                "locale": "utc",
-                "description": "Timestamp of the last consolidation update of this datatake completeness document (UTC)"
+                "locale": "utc"
             },
             "key": {
-                "type": "keyword",
-                "description": "Unique identifier of the completeness document, derived from the datatake"
+                "type": "keyword"
             },
             "name": {
-                "type": "keyword",
-                "description": "Name of the datatake this completeness relates to"
+                "type": "keyword"
             },
             "service_type": {
-                "type": "keyword",
-                "description": "Type of the production service providing the products (partition field)"
+                "type": "keyword"
             },
             "service_id": {
-                "type": "keyword",
-                "description": "Identifier of the production service instance providing the products (partition field)"
+                "type": "keyword"
             },
             "mission": {
-                "type": "keyword",
-                "description": "Mission the datatake belongs to (e.g. S1, S2)"
+                "type": "keyword"
             },
             "satellite_unit": {
-                "type": "keyword",
-                "description": "Satellite unit of the datatake (e.g. S1A, S2B)"
+                "type": "keyword"
             },
             "datatake_id": {
-                "type": "keyword",
-                "description": "Identifier of the datatake whose production completeness is measured"
+                "type": "keyword"
             },
             "hex_datatake_id": {
-                "type": "keyword",
-                "description": "Hexadecimal representation of the datatake identifier"
+                "type": "keyword"
             },
             "application_date": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Application date of the mission plan file that declared this datatake (UTC)"
+                "locale": "utc"
             },
             "observation_time_start": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Start of the datatake observation/sensing window (UTC)"
+                "locale": "utc"
             },
             "observation_duration": {
-                "type": "long",
-                "description": "Duration of the datatake observation window in microseconds"
+                "type": "long"
             },
             "observation_time_stop": {
                 "type": "date",
-                "locale": "utc",
-                "description": "End of the datatake observation/sensing window (UTC)"
+                "locale": "utc"
             },
             "l0_sensing_time_start": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Start of the level-0 sensing window for this datatake (UTC)"
+                "locale": "utc"
             },
             "l0_sensing_duration": {
-                "type": "long",
-                "description": "Duration of the level-0 sensing window in microseconds"
+                "type": "long"
             },
             "l0_sensing_time_stop": {
                 "type": "date",
-                "locale": "utc",
-                "description": "End of the level-0 sensing window for this datatake (UTC)"
+                "locale": "utc"
             },
             "number_of_scenes": {
-                "type": "integer",
-                "description": "Number of scenes planned for the datatake (Sentinel-2)"
+                "type": "integer"
             },
             "number_of_expected_tiles": {
-                "type": "integer",
-                "description": "Number of tiles expected to be produced for the datatake"
+                "type": "integer"
             },
             "absolute_orbit": {
-                "type": "keyword",
-                "description": "Absolute orbit number of the datatake"
+                "type": "keyword"
             },
             "relative_orbit": {
-                "type": "keyword",
-                "description": "Relative orbit number of the datatake"
+                "type": "keyword"
             },
             "polarization": {
-                "type": "keyword",
-                "description": "Polarisation configuration of the datatake (Sentinel-1)"
+                "type": "keyword"
             },
             "instrument_mode": {
-                "type": "keyword",
-                "description": "Instrument acquisition mode of the datatake"
+                "type": "keyword"
             },
             "instrument_swath": {
-                "type": "keyword",
-                "description": "Instrument swath of the datatake"
+                "type": "keyword"
             },
             "timeliness": {
-                "type": "keyword",
-                "description": "Timeliness category of the expected products (e.g. NRT, NTC)"
+                "type": "keyword"
             },
             "cams_tickets": {
-                "type": "keyword",
-                "description": "CAMS anomaly ticket identifiers attached to this datatake completeness"
+                "type": "keyword"
             },
             "datastrip_ids": {
-                "type": "keyword",
-                "description": "Identifiers of the datastrips associated with this datatake"
+                "type": "keyword"
             },
             "product_group_ids": {
-                "type": "keyword",
-                "description": "Identifiers of the product groups associated with this datatake"
+                "type": "keyword"
             },
             "last_attached_ticket": {
-                "type": "keyword",
-                "description": "Identifier of the most recently attached CAMS anomaly ticket"
+                "type": "keyword"
             },
             "last_attached_ticket_url": {
-                "type": "keyword",
-                "description": "URL of the most recently attached CAMS anomaly ticket"
+                "type": "keyword"
             },
             "cams_origin": {
-                "type": "keyword",
-                "description": "Origin reported by the attached CAMS anomaly ticket(s)"
+                "type": "keyword"
             },
             "cams_description": {
-                "type": "keyword",
-                "description": "Description reported by the attached CAMS anomaly ticket(s)"
+                "type": "keyword"
             },
             "missing_periods": {
                 "type": "object",
                 "properties": {
                     "name": {
-                        "type": "keyword",
-                        "description": "Name of the missing period entry"
+                        "type": "keyword"
                     },
                     "product_type": {
-                        "type": "keyword",
-                        "description": "Product type for which the sensing period is missing"
+                        "type": "keyword"
                     },
                     "sensing_start_date": {
                         "type": "date",
-                        "locale": "utc",
-                        "description": "Start of the missing sensing period (UTC)"
+                        "locale": "utc"
                     },
                     "sensing_end_date": {
                         "type": "date",
-                        "locale": "utc",
-                        "description": "End of the missing sensing period (UTC)"
+                        "locale": "utc"
                     },
                     "duration": {
-                        "type": "long",
-                        "description": "Duration of the missing sensing period in microseconds"
+                        "type": "long"
                     }
-                },
-                "description": "Sensing periods for which expected products are missing in the production"
+                }
             }
         },
         "_meta": {

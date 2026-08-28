@@ -16,76 +16,58 @@
             "ingestionTime": {
                 "type": "date",
                 "format": "date_time",
-                "locale": "utc",
-                "description": "Date and time when the databudget document was consolidated and ingested"
+                "locale": "utc"
             },
             "reportName": {
-                "type": "keyword",
-                "description": "Name of the source databudget report file this record was derived from"
+                "type": "keyword"
             },
             "databudget_type": {
-                "type": "keyword",
-                "description": "Original product type as declared in the databudget report"
+                "type": "keyword"
             },
             "database_type": {
-                "type": "keyword",
-                "description": "Product type as used in the database, expanded from the compacted databudget type notation"
+                "type": "keyword"
             },
             "database_timeliness": {
-                "type": "keyword",
-                "description": "Timeliness label as used in the database, mapped from the databudget timeliness through the lookup table"
+                "type": "keyword"
             },
             "num_day": {
-                "type": "keyword",
-                "description": "Expected number of products per day declared in the databudget"
+                "type": "keyword"
             },
             "data_category": {
-                "type": "keyword",
-                "description": "Category of the record: RAW, GLOBAL_THRESHOLD, SPECIFIC_THRESHOLD or TIMELINESS_LUT"
+                "type": "keyword"
             },
             "level": {
-                "type": "keyword",
-                "description": "Product processing level (e.g. L0, L1, L2)"
+                "type": "keyword"
             },
             "timeliness": {
-                "type": "keyword",
-                "description": "Timeliness of the product as declared in the databudget"
+                "type": "keyword"
             },
             "produced": {
-                "type": "keyword",
-                "description": "Production service value for the product type as declared in the databudget"
+                "type": "keyword"
             },
             "archived": {
-                "type": "keyword",
-                "description": "Archiving service value for the product type as declared in the databudget"
+                "type": "keyword"
             },
             "disseminated": {
-                "type": "keyword",
-                "description": "Dissemination service value for the product type as declared in the databudget"
+                "type": "keyword"
             },
             "volume_day": {
-                "type": "float",
-                "description": "Expected data volume produced per day for the product type"
+                "type": "float"
             },
             "mission": {
-                "type": "keyword",
-                "description": "Mission the databudget entry applies to (e.g. S1, S2)"
+                "type": "keyword"
             },
             "version": {
-                "type": "keyword",
-                "description": "Version of the databudget the record was generated from"
+                "type": "keyword"
             },
             "threshold_subtype": {
-                "type": "keyword",
-                "description": "Service type (e.g. PRIP, LTA, DA) the threshold applies to"
+                "type": "keyword"
             },
             "threshold_volume": {
-                "type": "float",
-                "description": "Expected daily data volume threshold, summed from the databudget volume per day"
+                "type": "float"
             },
             "threshold_count": {
-                "type": "float",
-                "description": "Expected daily product count threshold, summed from the databudget count per day"
+                "type": "float"
             }
         },
         "_meta": {

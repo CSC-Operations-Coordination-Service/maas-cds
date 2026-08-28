@@ -11,38 +11,30 @@
     "mappings": {
         "properties": {
             "key": {
-                "type": "keyword",
-                "description": "Unique key of the completeness configuration entry"
+                "type": "keyword"
             },
             "activated": {
-                "type": "boolean",
-                "description": "Whether this completeness configuration entry is activated"
+                "type": "boolean"
             },
             "mission": {
-                "type": "keyword",
-                "description": "Mission the completeness configuration applies to (e.g. S1, S2, S3)"
+                "type": "keyword"
             },
             "satellite_unit": {
-                "type": "keyword",
-                "description": "Satellite unit the completeness configuration applies to"
+                "type": "keyword"
             },
             "service_type": {
-                "type": "keyword",
-                "description": "Service type the completeness configuration applies to (e.g. DD, LTA)"
+                "type": "keyword"
             },
             "service_id": {
-                "type": "keyword",
-                "description": "Identifier of the service the completeness configuration applies to"
+                "type": "keyword"
             },
             "start_date": {
                 "type": "date",
-                "locale": "utc",
-                "description": "Start date of validity for this completeness configuration"
+                "locale": "utc"
             },
             "end_date": {
                 "type": "date",
-                "locale": "utc",
-                "description": "End date of validity for this completeness configuration"
+                "locale": "utc"
             }
         },
         "_meta": {}

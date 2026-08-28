@@ -13,52 +13,40 @@
             "updateTime": {
                 "type": "date",
                 "format": "date_time",
-                "locale": "utc",
-                "description": "Timestamp of the last update of this consolidated document"
+                "locale": "utc"
             },
             "reportName": {
-                "type": "keyword",
-                "description": "Name of the source report this document was consolidated from"
+                "type": "keyword"
             },
             "product_name": {
-                "type": "keyword",
-                "description": "Name of the product to be deleted"
+                "type": "keyword"
             },
             "jira_issue": {
-                "type": "keyword",
-                "description": "Jira issue key associated with the deletion request"
+                "type": "keyword"
             },
             "interface_type": {
-                "type": "keyword",
-                "description": "Type of interface on which the deletion is tracked"
+                "type": "keyword"
             },
             "DD_DAS_status": {
-                "type": "keyword",
-                "description": "Deletion status of the product on the DD/DAS interface"
+                "type": "keyword"
             },
             "LTA_Acri_status": {
-                "type": "keyword",
-                "description": "Deletion status of the product on the LTA Acri interface"
+                "type": "keyword"
             },
             "LTA_CloudFerro_status": {
-                "type": "keyword",
-                "description": "Deletion status of the product on the LTA CloudFerro interface"
+                "type": "keyword"
             },
             "LTA_Exprivia_status": {
-                "type": "keyword",
-                "description": "Deletion status of the product on the LTA Exprivia interface"
+                "type": "keyword"
             },
             "LTA_S5P_DLR_status": {
-                "type": "keyword",
-                "description": "Deletion status of the product on the LTA S5P DLR interface"
+                "type": "keyword"
             },
             "LTA_Werum_status": {
-                "type": "keyword",
-                "description": "Deletion status of the product on the LTA Werum interface"
+                "type": "keyword"
             },
             "effective_product_name": {
-                "type": "keyword",
-                "description": "Effective product name used to match the product across interfaces"
+                "type": "keyword"
             }
         },
         "_meta": {}
