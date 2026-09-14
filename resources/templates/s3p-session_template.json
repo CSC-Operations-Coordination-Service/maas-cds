@@ -5,7 +5,12 @@
     "settings": {
         "index": {
             "number_of_shards": 3,
-            "number_of_replicas": 1
+            "number_of_replicas": 1,
+            "mapping": {
+                "total_fields": {
+                    "limit": 2000
+                }
+            }
         }
     },
     "mappings": {
@@ -89,6 +94,9 @@
             "satellite_id": {
                 "type": "keyword"
             },
+            "is_missing": {
+                "type": "boolean"
+            },
             "hkraw_delivery_time": {
                 "type": "date",
                 "locale": "utc"
@@ -106,6 +114,9 @@
                         "type": "keyword"
                     },
                     "product_type": {
+                        "type": "keyword"
+                    },
+                    "timeliness": {
                         "type": "keyword"
                     },
                     "flux": {

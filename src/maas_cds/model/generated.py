@@ -4434,6 +4434,8 @@ class S3pSessionL0PpGranules(InnerDoc):
 
     product_type = Keyword()
 
+    timeliness = Keyword()
+
     flux = Keyword()
 
     delivery_date_to_eum = ZuluDate()
@@ -4510,6 +4512,8 @@ class S3pSession(MAASDocument):
     hkraw_name = Keyword()
 
     hkraw_size = Long()
+
+    is_missing = Boolean()
 
     l0pp_granules = Object(S3pSessionL0PpGranules)
 

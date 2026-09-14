@@ -3,19 +3,12 @@
 import logging
 
 from maas_cds.lib.config_manager import MaasConfigManager
-from maas_cds.lib.status import evaluate_completeness_status
 from maas_cds.model import generated
-from maas_cds.model.enumeration import CompletenessScope
 
-
-from maas_cds.lib.periodutils import (
-    compute_total_sensing_product,
-    compute_total_sensing_period,
-    Period,
-)
-from maas_cds.lib import tolerance
+from maas_cds.lib.periodutils import Period
 
 from maas_cds.model.anomaly_mixin import AnomalyMixin
+from maas_cds.model.completeness_mixin import CompletenessMixin
 from opensearchpy import Q, Keyword
 
 __all__ = ["CdsCompletenessSplitted"]
@@ -24,14 +17,14 @@ __all__ = ["CdsCompletenessSplitted"]
 LOGGER = logging.getLogger("CdsCompletenessSplitted")
 
 
-class CdsCompletenessSplitted(AnomalyMixin, generated.CdsCompletenessSplitted):
+class CdsCompletenessSplitted(
+    CompletenessMixin, AnomalyMixin, generated.CdsCompletenessSplitted
+):
     """Document handeling completeness splitted"""
 
     cams_tickets = Keyword(multi=True)
     cams_origin = Keyword(multi=True)
     cams_descriptions = Keyword(multi=True)
-
-    COMPLETENESS_TOLERANCE = {}
 
     @property
     def completeness_key(self):
@@ -69,9 +62,11 @@ class CdsCompletenessSplitted(AnomalyMixin, generated.CdsCompletenessSplitted):
         )
 
         # get expected for current completeness document
-        expected_value = self.get_expected_value()
+        completeness_values = self.compute_completeness_values(
+            sensing_value, self.get_expected_value()
+        )
 
-        if not expected_value:
+        if completeness_values is None:
             LOGGER.warning(
                 "[%s] - Trying to evaluate completeness but expected_value = 0 | %s %s",
                 self.datatake_id,
@@ -81,12 +76,12 @@ class CdsCompletenessSplitted(AnomalyMixin, generated.CdsCompletenessSplitted):
             return
 
         # value
-        self.value = sensing_value
-        self.expected = expected_value
-        self.value_adjusted = min(sensing_value, expected_value)
-        self.percentage = self.value_adjusted / expected_value * 100
+        self.value = completeness_values.value
+        self.expected = completeness_values.expected
+        self.value_adjusted = completeness_values.value_adjusted
+        self.percentage = completeness_values.percentage
 
-        self.status = evaluate_completeness_status(self.percentage)
+        self.status = completeness_values.status
 
         if observation_period is None:
             LOGGER.warning("[%s] - Unable to retrieve a period", self.meta.id)
@@ -95,53 +90,12 @@ class CdsCompletenessSplitted(AnomalyMixin, generated.CdsCompletenessSplitted):
             self.observation_time_stop = observation_period.end
 
     def get_expected_value(self):
-        config_completeness = MaasConfigManager().get_config(
-            f"MaasConfigCompleteness{self.MISSION}"
-        )[0]
+        """Expected value of this completeness document
 
-        # Filter config completeness item to find the one that matches product_type and timeliness
-        matching_items = [
-            item
-            for item in config_completeness.records
-            if item.product_type == self.product_type
-            and item.timeliness == self.timeliness
-        ]
-
-        if not matching_items:
-            LOGGER.warning(
-                "[%s] - No matching config item found for product_type=%s, timeliness=%s",
-                self.datatake_id,
-                self.product_type,
-                self.timeliness,
-            )
-            return 0
-
-        if len(matching_items) > 1:
-            LOGGER.warning(
-                "[%s] - Matching two many config item found for product_type=%s, timeliness=%s",
-                self.datatake_id,
-                self.product_type,
-                self.timeliness,
-            )
-
-        expected_value = matching_items[0].sensing_in_minutes * 60 * 1000000
-
-        LOGGER.debug(
-            "Expected value from config for %s are %s",
-            self.product_type,
-            expected_value,
-        )
-
-        tolerance_value = tolerance.get_completeness_tolerance(
-            self.COMPLETENESS_TOLERANCE,
-            self.mission,
-            CompletenessScope.LOCAL,
-            self.product_type,
-        )
-
-        expected_value += tolerance_value
-
-        return expected_value
+        Returns:
+            int: the expected value in microseconds
+        """
+        return self.get_expected_value_for(self.product_type, self.timeliness)
 
     def get_applicable_configuration(self):
 
@@ -255,11 +209,9 @@ class CdsCompletenessSplitted(AnomalyMixin, generated.CdsCompletenessSplitted):
             for product in implied_documents
         ]
 
-        product_periods.sort(key=lambda product: product.start)
-
-        completeness_value = compute_total_sensing_product(product_periods)
-
-        observation_period = compute_total_sensing_period(product_periods)
+        completeness_value, observation_period = self.compute_sensing_value(
+            product_periods
+        )
 
         LOGGER.debug(
             "[%s] - Computed value : %s for period : %s",
