@@ -2,12 +2,12 @@
 
 from datetime import timedelta
 import logging
-import re
 import typing
 from maas_engine.engine.rawdata import DataEngine
 from maas_model import ZuluDate
 from opensearchpy import Q, MultiSearch
 from maas_cds.engines.reports.anomaly_impact import AnomalyImpactMixinEngine
+from maas_cds.lib.orbit_id_strategy import S3DatatakeIdStrategy
 from maas_cds.lib.parsing_name.utils import DATATAKE_ID_MISSING_VALUE
 from maas_cds.model.cds_s3_completeness import CdsS3Completeness
 from maas_cds.model.product_s3 import CdsProductS3
@@ -22,7 +22,8 @@ class ComputeS3CompletenessEngine(AnomalyImpactMixinEngine, DataEngine):
     ORBIT_DURATION_IN_MINUTES = 101
     PRODUCT_TYPE_TO_USE_FOR_MISSING_ORBIT_DETECTION = "TM_0_NAT___"
     TARGET_MODEL = "CdsS3Completeness"
-    DATATAKE_ID_REGEX_FORMAT = r"S3[A-Z]-\d\d\d-\d\d\d"
+    ORBIT_ID_STRATEGY = S3DatatakeIdStrategy
+    DATATAKE_ID_REGEX_FORMAT = S3DatatakeIdStrategy.ID_REGEX_FORMAT
 
     def __init__(self, args=None, completeness_tolerance=None):
 
@@ -452,9 +453,9 @@ class ComputeS3CompletenessEngine(AnomalyImpactMixinEngine, DataEngine):
 
         return products_for_gap_analysis
 
-    @staticmethod
+    @classmethod
     def generate_datatake_ids_list_between_2_ids(
-        datatake_ref_1: str, datatake_ref_2: str
+        cls, datatake_ref_1: str, datatake_ref_2: str
     ) -> typing.List[str]:
         """Function which return a list of all S3 datatakes_id string which are
         between 2 S3 datatake_ids given as arguments
@@ -467,40 +468,12 @@ class ComputeS3CompletenessEngine(AnomalyImpactMixinEngine, DataEngine):
             ValueError: ValueError raised if datatake_ids does not respect the expected format
 
         Returns:
-            typing.List[str]: The list of datatake_ids between the 2 references
+            typing.List[str]: The list of datatake_ids between the 2 references,
+                from the most recent orbit to the oldest one
         """
-        datatake_list = []
-
-        if not re.search(
-            ComputeS3CompletenessEngine.DATATAKE_ID_REGEX_FORMAT, datatake_ref_1
-        ) or not re.search(
-            ComputeS3CompletenessEngine.DATATAKE_ID_REGEX_FORMAT, datatake_ref_2
-        ):
-            raise ValueError("Inputs arguments does not respect the expected format")
-
-        if datatake_ref_1 == datatake_ref_2:
-            return []
-        minref, maxref = ComputeS3CompletenessEngine.sort_datatake_id(
-            datatake_ref_1, datatake_ref_2
+        return cls.ORBIT_ID_STRATEGY.ids_between(
+            datatake_ref_1, datatake_ref_2, descending=True
         )
-
-        LOGGER.debug("Generate missing datatake between %s and %s", minref, maxref)
-
-        while True:
-            satellite, cycle_count, relative_orbit = maxref.split("-")
-            cycle_count = int(cycle_count)
-            relative_orbit = int(relative_orbit)
-
-            relative_orbit -= 1
-            if relative_orbit < 1:
-                relative_orbit = 385
-                cycle_count -= 1
-            maxref = f"{satellite}-{cycle_count:03}-{relative_orbit:03}"
-            if maxref == minref:
-                break
-            datatake_list.append(maxref)
-
-        return datatake_list
 
     def add_missing_completeness_documents(
         self, datatake_ids_tuples: typing.List[typing.Tuple[str, ZuluDate, ZuluDate]]
@@ -561,9 +534,9 @@ class ComputeS3CompletenessEngine(AnomalyImpactMixinEngine, DataEngine):
                 )
                 self.create_completeness_doc(compute_key, prod, self.target_model)
 
-    @staticmethod
+    @classmethod
     def sort_datatake_id(
-        datatake_id_1: str, datatake_id_2: str
+        cls, datatake_id_1: str, datatake_id_2: str
     ) -> typing.Tuple[str, str]:
         """This function sort 2 datatake ids in ascending order
 
@@ -577,19 +550,4 @@ class ComputeS3CompletenessEngine(AnomalyImpactMixinEngine, DataEngine):
         Returns:
             Tuple[str, str]: The 2 datatake_ids string sorted in ascending order in a tuple
         """
-        if not re.search(
-            ComputeS3CompletenessEngine.DATATAKE_ID_REGEX_FORMAT, datatake_id_1
-        ) or not re.search(
-            ComputeS3CompletenessEngine.DATATAKE_ID_REGEX_FORMAT, datatake_id_2
-        ):
-            raise ValueError("Inputs arguments does not respect the expected format")
-
-        ref_part_1 = datatake_id_1.split("-")
-        ref_part_2 = datatake_id_2.split("-")
-        val1 = int(ref_part_1[1]) * 10000 + int(ref_part_1[2])
-        val2 = int(ref_part_2[1]) * 10000 + int(ref_part_2[2])
-        return (
-            (datatake_id_1, datatake_id_2)
-            if val2 >= val1
-            else (datatake_id_2, datatake_id_1)
-        )
+        return cls.ORBIT_ID_STRATEGY.sort_ids(datatake_id_1, datatake_id_2)

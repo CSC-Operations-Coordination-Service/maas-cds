@@ -1,8 +1,11 @@
 """S3P Session consolidation"""
 
+from maas_cds.lib.config_manager import MaasConfigManager
 from maas_cds.lib.parsing_name.parsing_name_s3 import extract_data_from_product_name_s3
+from maas_cds.model.configuration import MaasConfigCompletenessS3
 from maas_cds.model.s3p_session import S3pMetricsCirculationAgent
 from maas_engine.engine import DataEngine
+from opensearchpy.exceptions import NotFoundError
 
 import maas_cds.model as model
 from maas_model.date_utils import datestr_to_utc_datetime, datetime_to_zulu
@@ -26,7 +29,24 @@ class S3pSessionConsolidatorEngine(DataEngine):
 
         self.raw_data_type = raw_data_type
 
+        # needed to get the expected values of the session completeness. The
+        # session KPI do not depend on it: a missing configuration index shall
+        # not prevent the consolidation.
+        try:
+            self.config_manager = MaasConfigManager(
+                config_model_class=[MaasConfigCompletenessS3()]
+            )
+        except NotFoundError:
+            self.logger.warning(
+                "No S3 completeness configuration: the session completeness "
+                "will not be computed"
+            )
+
         self.local_session_cache = {}
+
+        # sessions created for a downlink orbit that turned out to have a real
+        # one after all: they are dropped when their orbit is consolidated
+        self.superseded_missing_sessions = {}
 
     def action_iterator(self):
         """override
@@ -54,6 +74,8 @@ class S3pSessionConsolidatorEngine(DataEngine):
                     session = model.S3pSession.from_session_name(session_name)
 
                 self.local_session_cache[session_name] = session
+
+                self.collect_superseded_missing_session(session)
 
             if session is None:
                 self.logger.warning(
@@ -83,6 +105,76 @@ class S3pSessionConsolidatorEngine(DataEngine):
             session.compute_kpi()
 
             yield session.to_bulk_action()
+
+        yield from self.missing_sessions_actions()
+
+    def collect_superseded_missing_session(self, session: model.S3pSession):
+        """Spot the session created for the downlink orbit of a real session
+
+        A downlink orbit reported as missing may eventually get its logs, late
+        or replayed: the session standing for it is then a duplicate of the real
+        one and has to go.
+
+        Args:
+            session (model.S3pSession): a session seen for the first time
+        """
+        if not session.satellite_id or not session.downlink_orbit:
+            return
+
+        missing_session_name = model.S3pSession.missing_session_name(
+            session.satellite_id, session.downlink_orbit
+        )
+
+        if missing_session_name in self.superseded_missing_sessions:
+            return
+
+        missing_session = model.S3pSession.get_by_id(missing_session_name)
+
+        if missing_session is None:
+            return
+
+        self.logger.info(
+            "The downlink orbit %s was reported as missing and has a session "
+            "after all: dropping %s",
+            session.downlink_orbit,
+            missing_session_name,
+        )
+
+        self.superseded_missing_sessions[missing_session_name] = missing_session
+
+    def missing_sessions_actions(self):
+        """Create the sessions of the downlink orbits no session was seen for
+
+        Runs once per consolidated session rather than once per raw metric, and
+        only for the sessions holding the trigger product type.
+
+        Yields:
+            Iterator[typing.Generator]: bulk actions
+        """
+        for missing_session in self.superseded_missing_sessions.values():
+            yield missing_session.to_bulk_action("delete")
+
+        # the sessions of this batch are not indexed yet: their orbits would
+        # otherwise be seen as missing
+        known_orbits = {
+            (session.satellite_id, session.downlink_orbit)
+            for session in self.local_session_cache.values()
+        }
+
+        for session in self.local_session_cache.values():
+
+            if not session.is_session_to_check_missing_orbit():
+                continue
+
+            for missing_session in session.generate_missing_sessions():
+
+                if (
+                    missing_session.satellite_id,
+                    missing_session.downlink_orbit,
+                ) in known_orbits:
+                    continue
+
+                yield missing_session.to_bulk_action()
 
     # consolidate_from_ModelClass
     # pylint: disable=C0103
@@ -291,6 +383,8 @@ class S3pSessionConsolidatorEngine(DataEngine):
                 break
 
         else:
+            granule_data = extract_data_from_product_name_s3(raw_document.filename)
+
             document.l0pp_granules.append(
                 {
                     "product_name": raw_document.filename,
@@ -298,9 +392,8 @@ class S3pSessionConsolidatorEngine(DataEngine):
                     "raw_data_generation_time": generation_time,
                     "validitystart": datetime_to_zulu(raw_document.validitystart),
                     "validitystop": datetime_to_zulu(raw_document.validitystop),
-                    "product_type": extract_data_from_product_name_s3(
-                        raw_document.filename
-                    )["product_type"],
+                    "product_type": granule_data["product_type"],
+                    "timeliness": granule_data.get("timeliness"),
                 }
             )
 
