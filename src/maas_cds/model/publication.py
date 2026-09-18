@@ -4,6 +4,7 @@ import logging
 
 from opensearchpy import Keyword
 from maas_cds.model.anomaly_mixin import AnomalyMixin
+from maas_cds.model.deletable_mixin import DeletableMixin
 from maas_cds.model.dynamic_partition_mixin import DynamicPartitionMixin
 from maas_cds.model.product_datatake_mixin import ProductDatatakeMixin
 
@@ -18,7 +19,11 @@ LOGGER = logging.getLogger("CdsPublication")
 
 
 class CdsPublication(
-    DynamicPartitionMixin, AnomalyMixin, ProductDatatakeMixin, generated.CdsPublication
+    DeletableMixin,
+    DynamicPartitionMixin,
+    AnomalyMixin,
+    ProductDatatakeMixin,
+    generated.CdsPublication,
 ):
     """CdsPublication custom"""
 
@@ -42,6 +47,33 @@ class CdsPublication(
         self.deletion_issue = issue.key
         self.deletion_date = issue.deletion_date
         self.deletion_cause = issue.deletion_cause
+
+    def unmark_as_deleted(self, issue: "DeletionIssue", service_ids: dict = None) -> bool:
+        """Revert the deletion attributes set by `issue`.
+
+        A publication is already scoped to a single service by its service_type /
+        service_id, so its deletion attributes are flat and there is nothing to
+        iterate over.
+
+        Publications marked before the deletion issue was recorded have no
+        deletion_issue: they cannot be attributed to a ticket and are left alone.
+
+        Args:
+            issue (DeletionIssue): issue whose marks must be reverted
+            service_ids (dict): Unused. Defaults to None
+
+        Returns:
+            bool: True if the publication was modified
+        """
+        if getattr(self, "deletion_issue", None) != issue.key:
+            return False
+
+        changed = False
+
+        for name in ("deletion_issue", "deletion_date", "deletion_cause"):
+            changed |= self.remove_field(name)
+
+        return changed
 
     @property
     def completeness_document_index(self):

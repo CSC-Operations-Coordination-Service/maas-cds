@@ -5,6 +5,7 @@ import typing
 
 from opensearchpy import Keyword
 from maas_cds.model.anomaly_mixin import AnomalyMixin
+from maas_cds.model.deletable_mixin import DeletableMixin
 from maas_cds.model.dynamic_partition_mixin import DynamicPartitionMixin
 from maas_cds.model.product_datatake_mixin import ProductDatatakeMixin
 from maas_cds.model import generated
@@ -17,9 +18,21 @@ __all__ = ["CdsProduct"]
 
 LOGGER = logging.getLogger("CdsProduct")
 
+# attributes written by mark_as_deleted for each deleted service
+DELETION_FIELD_SUFFIXES = (
+    "_is_deleted",
+    "_deletion_issue",
+    "_deletion_date",
+    "_deletion_cause",
+)
+
 
 class CdsProduct(
-    DynamicPartitionMixin, AnomalyMixin, ProductDatatakeMixin, generated.CdsProduct
+    DeletableMixin,
+    DynamicPartitionMixin,
+    AnomalyMixin,
+    ProductDatatakeMixin,
+    generated.CdsProduct,
 ):
     """CdsProduct custom"""
 
@@ -182,12 +195,51 @@ class CdsProduct(
                 get_microseconds_delta(dd_publication_date, self.prip_publication_date),
             )
 
+    def deleted_service_ids(self, interface_type: str) -> typing.List[str]:
+        """Service identifiers currently flagged deleted for an interface type.
+
+        Discovered from the document itself rather than from
+        issue.deletion_interfaces, so that a ticket whose interface list was
+        edited after marking can still be rolled back entirely.
+
+        Args:
+            interface_type (str): service type (currently DD or LTA)
+
+        Returns:
+            List[str]: service identifiers
+        """
+        prefix = f"{interface_type}_"
+
+        suffix = "_is_deleted"
+
+        return [
+            name[len(prefix) : -len(suffix)]
+            for name in self.to_dict()
+            if name.startswith(prefix) and name.endswith(suffix)
+        ]
+
+    def recompute_deleted_counter(self, interface_type: str):
+        """Recount the deletions of an interface type from the document itself.
+
+        Args:
+            interface_type (str): service type (currently DD or LTA)
+        """
+        nb_deleted_value = sum(
+            1
+            for name, value in self.to_dict().items()
+            if name.startswith(f"{interface_type}_")
+            and name.endswith("_is_deleted")
+            and value
+        )
+
+        setattr(self, f"nb_{interface_type.lower()}_deleted", nb_deleted_value)
+
     def mark_as_deleted(self, issue: "DeletionIssue", service_ids: typing.List[str]):
         """Populate attributes to reflect deletion from interfaces.
 
         Args:
             issue (DeletionIssue): issue
-            interface_name_dict (dict, optional): interface name dict. Defaults to None.
+            service_ids (List[str]): service identifiers to mark deleted
         """
         for service_id in service_ids:
             prefix = f"{issue.interface_type}_{service_id}"
@@ -209,13 +261,41 @@ class CdsProduct(
             )
 
         # Count deleted per service type
-        nb_deleted_attrname = f"nb_{issue.interface_type.lower()}_deleted"
+        self.recompute_deleted_counter(issue.interface_type)
 
-        nb_deleted_value = sum(
-            1 if getattr(self, field) else 0
-            for field in dir(self)
-            if field.startswith(f"{issue.interface_type}_")
-            and field.endswith("_is_deleted")
-        )
+    def unmark_as_deleted(
+        self, issue: "DeletionIssue", service_ids: typing.List[str] = None
+    ) -> bool:
+        """Revert the deletion attributes set by `issue`.
 
-        setattr(self, nb_deleted_attrname, nb_deleted_value)
+        Only the services whose deletion issue is `issue` are cleared: a product
+        deleted from an interface by another ticket keeps its flags.
+
+        Args:
+            issue (DeletionIssue): issue whose marks must be reverted
+            service_ids (List[str], optional): services to consider. Defaults to
+                every service currently flagged for the issue interface type.
+
+        Returns:
+            bool: True if the product was modified
+        """
+        if service_ids is None:
+            service_ids = self.deleted_service_ids(issue.interface_type)
+
+        changed = False
+
+        for service_id in service_ids:
+            prefix = f"{issue.interface_type}_{service_id}"
+
+            if getattr(self, f"{prefix}_deletion_issue", None) != issue.key:
+                continue
+
+            for suffix in DELETION_FIELD_SUFFIXES:
+                self.remove_field(f"{prefix}{suffix}")
+
+            changed = True
+
+        if changed:
+            self.recompute_deleted_counter(issue.interface_type)
+
+        return changed
