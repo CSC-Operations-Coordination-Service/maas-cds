@@ -170,9 +170,9 @@ def test_generate_missing_sessions_completeness(session, previous_session):
 
     missing = missing_sessions[0]
 
-    assert missing.TM_0_HKM____local_value == 0
-    assert missing.TM_0_HKM____local_percentage == 0
-    assert missing.TM_0_HKM____local_status == "Missing"
+    assert missing.completeness_for("TM_0_HKM___")["value"] == 0
+    assert missing.completeness_for("TM_0_HKM___")["percentage"] == 0
+    assert missing.completeness_for("TM_0_HKM___")["status"] == "Missing"
 
     assert missing.global_percentage == 0
     assert missing.global_status == "Missing"

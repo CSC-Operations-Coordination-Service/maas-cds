@@ -18,6 +18,9 @@ import pytest
 from data.s3p_session_data_test import S3B_SESSION_042640
 
 from maas_cds.lib.config_manager import MaasConfigManager
+from maas_cds.lib.parsing_name.parsing_name_s3 import (
+    granule_product_type_to_product_type,
+)
 from maas_cds.model.cds_s3_completeness import CdsS3Completeness
 from maas_cds.model.configuration import MaasConfigCompletenessS3
 from maas_cds.model.s3p_session import S3pSession
@@ -59,6 +62,24 @@ SENSING_VALUES = {
     # 01:16:51 -> 02:59:22, in 2 overlapping granules counted once
     "TM_0_NAT___": (6151000000, EXPECTED_101),
 }
+
+
+# The sensing period each product type covers: the earliest validitystart and
+# the latest validitystop of its granules, as the document stores them. Derived
+# from the granules rather than typed again, so the two cannot drift apart.
+SENSING_PERIODS = {}
+
+for _granule in S3B_SESSION_042640["l0pp_granules"]:
+    _product_type = granule_product_type_to_product_type(_granule["product_type"])
+
+    _start, _stop = SENSING_PERIODS.get(
+        _product_type, (_granule["validitystart"], _granule["validitystop"])
+    )
+
+    SENSING_PERIODS[_product_type] = (
+        min(_start, _granule["validitystart"]),
+        max(_stop, _granule["validitystop"]),
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -152,18 +173,16 @@ def test_local_completeness(session, product_type, sensing_value, expected_value
     """Each product type covers the sensing expected of an orbit"""
     session.compute_kpi()
 
-    values = {
-        name: getattr(session, f"{product_type}_local_{name}")
-        for name in ("value", "expected", "value_adjusted", "percentage", "status")
-    }
-
-    assert values == {
+    assert session.completeness_for(product_type) == {
+        "product_type": product_type,
         "value": sensing_value,
         "expected": expected_value,
         # the acquisition overlaps the neighbour orbits: the value is capped
         "value_adjusted": expected_value,
         "percentage": 100,
         "status": "Complete",
+        "sensing_start_date": SENSING_PERIODS[product_type][0],
+        "sensing_stop_date": SENSING_PERIODS[product_type][1],
     }
 
 
@@ -184,9 +203,7 @@ def test_no_completeness_outside_the_expected_product_types(session):
     """The granule flavour of a product type never leaks into the document"""
     session.compute_kpi()
 
-    completeness_types = {
-        key.split("_local_")[0] for key in session.to_dict() if "_local_" in key
-    }
+    completeness_types = {entry["product_type"] for entry in session.completeness}
 
     assert completeness_types == set(SENSING_VALUES)
 
@@ -217,7 +234,7 @@ def test_missing_orbit_detection_from_this_session(session):
         assert missing.satellite_id == "S3B"
 
         # the very product types the real session reads 100% for read 0% here
-        assert missing.TM_0_HKM____local_percentage == 0
+        assert missing.completeness_for("TM_0_HKM___")["percentage"] == 0
         assert missing.global_status == "Missing"
 
     # spread over the 3 orbits between the two acquisition starts (01:28:51 ->

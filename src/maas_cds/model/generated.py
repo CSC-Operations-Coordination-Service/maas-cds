@@ -4457,6 +4457,30 @@ class S3pSessionL0PpGranules(InnerDoc):
     transfer_duration_to_eum = Long()
 
 
+class S3pSessionCompleteness(InnerDoc):
+    """
+    Inner document class for parent class: S3pSession
+
+    Generated from property: completeness
+    """
+
+    expected = Long()
+
+    percentage = Float()
+
+    status = Keyword()
+
+    value = Long()
+
+    value_adjusted = Long()
+
+    product_type = Keyword()
+
+    sensing_start_date = ZuluDate()
+
+    sensing_stop_date = ZuluDate()
+
+
 class S3pSession(MAASDocument):
     """
     Mapping class for index: s3p-session
@@ -4478,6 +4502,8 @@ class S3pSession(MAASDocument):
     acquisition_stop_time = ZuluDate()
 
     cadu_files = Object(S3pSessionCaduFiles)
+
+    completeness = Object(S3pSessionCompleteness)
 
     delivery_start_to_eum = ZuluDate()
 

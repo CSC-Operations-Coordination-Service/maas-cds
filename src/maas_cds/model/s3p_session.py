@@ -14,6 +14,7 @@ from maas_cds.model.completeness_mixin import CompletenessMixin
 from maas_cds.model.enumeration import CompletenessScope
 from maas_model.date_utils import (
     datestr_to_utc_datetime,
+    datetime_to_zulu,
 )
 from opensearchpy import Keyword
 
@@ -217,6 +218,8 @@ class S3pSession(CompletenessMixin, generated.S3pSession):
     l0pp_granules = Keyword(multi=True)
 
     cadu_files = Keyword(multi=True)
+
+    completeness = Keyword(multi=True)
 
     @classmethod
     def from_session_name(cls, session_name: str) -> "S3pSession":
@@ -489,28 +492,125 @@ class S3pSession(CompletenessMixin, generated.S3pSession):
         Returns:
             int: the expected value in microseconds, 0 if it cannot be resolved
         """
-        expected_value = self.get_expected_value_for_product_type(
-            product_type, self.GRANULE_TIMELINESS
+        is_configured = any(
+            record.product_type == product_type
+            for record in self.completeness_configuration()
         )
 
-        if expected_value:
-            return expected_value
+        if is_configured:
+            return self.get_expected_value_for_product_type(
+                product_type, self.GRANULE_TIMELINESS
+            )
 
         sensing_in_minutes = self.SESSION_SENSING_IN_MINUTES.get(product_type)
 
         if sensing_in_minutes is None:
+            LOGGER.warning(
+                "[%s] - No expected sensing for product_type=%s, neither in the "
+                "configuration nor in the session ones",
+                self.meta.id,
+                product_type,
+            )
             return 0
 
         return self.expected_value_from_sensing_in_minutes(
             product_type, sensing_in_minutes
         )
 
+    @staticmethod
+    def completeness_entry(
+        product_type: str,
+        values,
+        observation_period: Period,
+        missing_sensing_date: datetime.datetime = None,
+    ) -> dict:
+        """Completeness of a single product type of the session
+
+        Args:
+            product_type (str): the product type
+            values (CompletenessValues): the computed completeness values
+            observation_period (Period): the sensing the granules of that
+                product type cover, None when the session carries none
+            missing_sensing_date (datetime.datetime): date to fall back on when
+                the product type has no sensing period of its own
+
+        Returns:
+            dict: an entry of the completeness list
+        """
+        entry = {"product_type": product_type}
+
+        entry.update(values._asdict())
+
+        if observation_period is not None:
+            entry["sensing_start_date"] = datetime_to_zulu(observation_period.start)
+            entry["sensing_stop_date"] = datetime_to_zulu(observation_period.end)
+
+        elif missing_sensing_date is not None:
+            # a period of no duration at all: the product type is placed on the
+            # time axis without claiming it covers any sensing
+            entry["sensing_start_date"] = entry["sensing_stop_date"] = datetime_to_zulu(
+                missing_sensing_date
+            )
+
+        return entry
+
+    def missing_sensing_date(self, granules_periods: dict) -> datetime.datetime:
+        """Date standing for the sensing of a product type the session misses
+
+        A product type with no granule has no sensing period, so nothing places
+        it on a time axis and it is invisible on the dashboards next to the
+        product types the session did carry. The middle of the sensing the
+        session covers is used instead, and the acquisition window of the
+        session when it carries no granule at all.
+
+        Args:
+            granules_periods (dict): the periods of each product type of the session
+
+        Returns:
+            datetime.datetime: the date, None if the session is not dated at all
+        """
+        periods = [
+            period for periods in granules_periods.values() for period in periods
+        ]
+
+        if periods:
+            start = min(period.start for period in periods)
+            end = max(period.end for period in periods)
+
+        else:
+            acquisition_period = self.acquisition_period()
+
+            if acquisition_period is None:
+                # an undated session: the start alone is better than nothing
+                return to_datetime(self.acquisition_start_time)
+
+            start, end = acquisition_period
+
+        return start + (end - start) / 2
+
+    def completeness_for(self, product_type: str) -> dict:
+        """Completeness entry of a product type
+
+        Args:
+            product_type (str): the product type
+
+        Returns:
+            dict: the entry, None if the session has none for that product type
+        """
+        for entry in self.completeness or []:
+            if entry["product_type"] == product_type:
+                return entry
+
+        return None
+
     def compute_completeness(self, granules: list):
         """Compute the sensing completeness of the session
 
-        A local completeness is stored for each product type a session is
+        The ``completeness`` list holds one entry per product type a session is
         expected to carry, so a product type completely missing from the session
-        reads 0% instead of nothing, plus a global one aggregating them.
+        reads 0% instead of nothing, placed on the time axis by a sensing period
+        of no duration. The global completeness aggregating them is stored on
+        the session itself.
 
         The timeliness is not part of the key: all the granules of a session are
         transferred in NR whatever the timeliness their products are published
@@ -522,12 +622,16 @@ class S3pSession(CompletenessMixin, generated.S3pSession):
         """
         granules_periods = self.group_granules_periods(granules)
 
+        missing_sensing_date = self.missing_sensing_date(granules_periods)
+
+        completeness = []
+
         global_value = 0
         global_expected = 0
 
         for product_type in self.expected_product_types():
 
-            sensing_value, _ = self.compute_sensing_value(
+            sensing_value, observation_period = self.compute_sensing_value(
                 granules_periods.pop(product_type, [])
             )
 
@@ -538,14 +642,19 @@ class S3pSession(CompletenessMixin, generated.S3pSession):
             if completeness_values is None:
                 continue
 
-            self.set_completeness_attributes(
-                product_type,
-                CompletenessScope.LOCAL,
-                completeness_values,
+            completeness.append(
+                self.completeness_entry(
+                    product_type,
+                    completeness_values,
+                    observation_period,
+                    missing_sensing_date,
+                )
             )
 
             global_value += completeness_values.value_adjusted
             global_expected += completeness_values.expected
+
+        self.completeness = completeness
 
         if granules_periods:
             LOGGER.debug(

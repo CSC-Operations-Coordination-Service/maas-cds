@@ -133,9 +133,9 @@ def test_completeness_session_only_product_type(session):
 
     session.compute_completeness(session.l0pp_granules)
 
-    assert session.OL_0_CR_____local_expected == CR_EXPECTED
-    assert session.OL_0_CR_____local_percentage == 100
-    assert session.OL_0_CR_____local_status == "Complete"
+    assert session.completeness_for("OL_0_CR____")["expected"] == CR_EXPECTED
+    assert session.completeness_for("OL_0_CR____")["percentage"] == 100
+    assert session.completeness_for("OL_0_CR____")["status"] == "Complete"
 
 
 def test_completeness_session_only_product_type_overriden_by_the_config(session):
@@ -152,7 +152,7 @@ def test_completeness_session_only_product_type_overriden_by_the_config(session)
         session.compute_completeness(session.l0pp_granules)
 
     # the 44 minutes of the configuration, not the 101 declared above
-    assert session.SR_0_SRA____local_expected == SR_EXPECTED
+    assert session.completeness_for("SR_0_SRA___")["expected"] == SR_EXPECTED
 
 
 def test_completeness_complete(session):
@@ -169,11 +169,11 @@ def test_completeness_complete(session):
 
     session.compute_completeness(session.l0pp_granules)
 
-    assert session.TM_0_NAT____local_value == TM_EXPECTED
-    assert session.TM_0_NAT____local_expected == TM_EXPECTED
-    assert session.TM_0_NAT____local_value_adjusted == TM_EXPECTED
-    assert session.TM_0_NAT____local_percentage == 100
-    assert session.TM_0_NAT____local_status == "Complete"
+    assert session.completeness_for("TM_0_NAT___")["value"] == TM_EXPECTED
+    assert session.completeness_for("TM_0_NAT___")["expected"] == TM_EXPECTED
+    assert session.completeness_for("TM_0_NAT___")["value_adjusted"] == TM_EXPECTED
+    assert session.completeness_for("TM_0_NAT___")["percentage"] == 100
+    assert session.completeness_for("TM_0_NAT___")["status"] == "Complete"
 
 
 def test_completeness_partial(session):
@@ -185,9 +185,9 @@ def test_completeness_partial(session):
 
     session.compute_completeness(session.l0pp_granules)
 
-    assert session.SR_0_SRA____local_value == SR_EXPECTED / 2
-    assert session.SR_0_SRA____local_percentage == 50
-    assert session.SR_0_SRA____local_status == "Partial"
+    assert session.completeness_for("SR_0_SRA___")["value"] == SR_EXPECTED / 2
+    assert session.completeness_for("SR_0_SRA___")["percentage"] == 50
+    assert session.completeness_for("SR_0_SRA___")["status"] == "Partial"
 
 
 def test_completeness_prefers_the_nr_expected_record(session):
@@ -199,8 +199,8 @@ def test_completeness_prefers_the_nr_expected_record(session):
     session.compute_completeness(session.l0pp_granules)
 
     # 44 minutes of the NR record, not the 101 of the ST one
-    assert session.SR_0_SRA____local_expected == SR_EXPECTED
-    assert session.SR_0_SRA____local_percentage == 100
+    assert session.completeness_for("SR_0_SRA___")["expected"] == SR_EXPECTED
+    assert session.completeness_for("SR_0_SRA___")["percentage"] == 100
 
 
 def test_completeness_missing_product_type(session):
@@ -211,19 +211,65 @@ def test_completeness_missing_product_type(session):
 
     session.compute_completeness(session.l0pp_granules)
 
-    assert session.SR_0_SRA____local_value == 0
-    assert session.SR_0_SRA____local_expected == SR_EXPECTED
-    assert session.SR_0_SRA____local_percentage == 0
-    assert session.SR_0_SRA____local_status == "Missing"
+    assert session.completeness_for("SR_0_SRA___")["value"] == 0
+    assert session.completeness_for("SR_0_SRA___")["expected"] == SR_EXPECTED
+    assert session.completeness_for("SR_0_SRA___")["percentage"] == 0
+    assert session.completeness_for("SR_0_SRA___")["status"] == "Missing"
 
-    assert session.DO_0_NAV____local_status == "Missing"
+    assert session.completeness_for("DO_0_NAV___")["status"] == "Missing"
+
+
+def test_missing_product_type_is_placed_on_the_time_axis(session):
+    """A product type with no granule gets a sensing period of no duration
+
+    Without a date nothing places it next to the product types the session did
+    carry: the middle of the sensing of the session is used, with the same
+    start and stop so it claims no sensing at all.
+    """
+    session.l0pp_granules = [
+        # 101 minutes, 05:06:44 -> 06:47:44
+        granule("TM_0_NAT__G", "2026-04-02T05:06:44.000Z", "2026-04-02T06:47:44.000Z"),
+    ]
+
+    session.compute_completeness(session.l0pp_granules)
+
+    entry = session.completeness_for("SR_0_SRA___")
+
+    assert entry["value"] == 0
+    assert entry["status"] == "Missing"
+    assert entry["sensing_start_date"] == "2026-04-02T05:57:14.000Z"
+    assert entry["sensing_stop_date"] == entry["sensing_start_date"]
+
+
+def test_missing_product_type_falls_back_on_the_acquisition(session):
+    """A session with no granule at all is placed by its acquisition window"""
+    session.acquisition_start_time = "2026-04-02T06:47:24.000Z"
+    session.acquisition_stop_time = "2026-04-02T06:57:24.000Z"
+
+    session.compute_completeness([])
+
+    entry = session.completeness_for("TM_0_NAT___")
+
+    assert entry["sensing_start_date"] == "2026-04-02T06:52:24.000Z"
+    assert entry["sensing_stop_date"] == entry["sensing_start_date"]
+
+
+def test_missing_product_type_of_an_undated_session(session):
+    """Nothing to place it with, so no date is invented"""
+    session.compute_completeness([])
+
+    entry = session.completeness_for("TM_0_NAT___")
+
+    assert entry["status"] == "Missing"
+    assert "sensing_start_date" not in entry
+    assert "sensing_stop_date" not in entry
 
 
 def test_completeness_ignores_the_upper_levels(session):
     """The L1 and L2 product types are not part of a session"""
     session.compute_completeness([])
 
-    assert not [key for key in session.to_dict() if key.startswith("OL_1_EFR")]
+    assert session.completeness_for("OL_1_EFR___") is None
 
 
 def test_completeness_overlapping_granules(session):
@@ -238,10 +284,12 @@ def test_completeness_overlapping_granules(session):
 
     session.compute_completeness(session.l0pp_granules)
 
-    assert session.SR_0_SRA____local_value == SR_EXPECTED + 60 * 1000000
-    assert session.SR_0_SRA____local_value_adjusted == SR_EXPECTED
-    assert session.SR_0_SRA____local_percentage == 100
-    assert session.SR_0_SRA____local_status == "Complete"
+    assert (
+        session.completeness_for("SR_0_SRA___")["value"] == SR_EXPECTED + 60 * 1000000
+    )
+    assert session.completeness_for("SR_0_SRA___")["value_adjusted"] == SR_EXPECTED
+    assert session.completeness_for("SR_0_SRA___")["percentage"] == 100
+    assert session.completeness_for("SR_0_SRA___")["status"] == "Complete"
 
 
 def test_completeness_global(session):
@@ -276,12 +324,10 @@ def test_completeness_product_type_out_of_configuration(session):
 
     session.compute_completeness(session.l0pp_granules)
 
-    session_dict = session.to_dict()
-
-    assert not [key for key in session_dict if key.startswith("MW_0_MWR")]
+    assert session.completeness_for("MW_0_MWR___") is None
 
     # the expected product types are still reported as missing
-    assert session_dict["TM_0_NAT____local_status"] == "Missing"
+    assert session.completeness_for("TM_0_NAT___")["status"] == "Missing"
 
 
 def test_completeness_legacy_granule_without_timeliness(session):
@@ -301,7 +347,7 @@ def test_completeness_legacy_granule_without_timeliness(session):
 
     session.compute_completeness(session.l0pp_granules)
 
-    assert session.TM_0_NAT____local_percentage == 100
+    assert session.completeness_for("TM_0_NAT___")["percentage"] == 100
 
 
 def test_completeness_unusable_granules(session):
@@ -316,8 +362,8 @@ def test_completeness_unusable_granules(session):
 
     session.compute_completeness(session.l0pp_granules)
 
-    assert session.TM_0_NAT____local_status == "Missing"
-    assert session.SR_0_SRA____local_status == "Missing"
+    assert session.completeness_for("TM_0_NAT___")["status"] == "Missing"
+    assert session.completeness_for("SR_0_SRA___")["status"] == "Missing"
     assert session.global_percentage == 0
 
 
@@ -335,7 +381,7 @@ def test_compute_kpi_computes_the_completeness(session):
     assert session.delivery_to_eum_completeness == 1
 
     # and the sensing one too
-    assert session.TM_0_NAT____local_percentage == 100
+    assert session.completeness_for("TM_0_NAT___")["percentage"] == 100
 
 
 def test_compute_kpi_without_configuration(session):
@@ -356,8 +402,6 @@ def test_compute_kpi_without_configuration(session):
 
     assert session.delivery_to_eum_completeness == 1
 
-    assert [key for key in session.to_dict() if key.endswith("_local_percentage")] == [
-        "OL_0_CR_____local_percentage"
-    ]
+    assert [entry["product_type"] for entry in session.completeness] == ["OL_0_CR____"]
 
-    assert "TM_0_NAT____local_percentage" not in session.to_dict()
+    assert session.completeness_for("TM_0_NAT___") is None
