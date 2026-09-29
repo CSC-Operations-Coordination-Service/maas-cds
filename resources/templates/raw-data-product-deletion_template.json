@@ -27,6 +27,14 @@
             "product_name": {
                 "type": "keyword"
             },
+            "attachment_id": {
+                "type": "keyword"
+            },
+            "attachment_created": {
+                "type": "date",
+                "format": "date_time",
+                "locale": "utc"
+            },
             "interface_type": {
                 "type": "keyword"
             }

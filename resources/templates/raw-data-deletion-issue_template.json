@@ -51,6 +51,12 @@
             "deletion_cause": {
                 "type": "keyword"
             },
+            "attachments": {
+                "type": "keyword"
+            },
+            "attachment_ids": {
+                "type": "keyword"
+            },
             "interface_type": {
                 "type": "keyword"
             }
