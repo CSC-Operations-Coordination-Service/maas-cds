@@ -1,0 +1,101 @@
+name: maas-cds CI/CD
+
+# Thin caller for the maas-cds package. Wires the reusable building blocks
+# from the workflow-catalog repo:
+#   python-ci.yml    — test (pytest + SonarQube) -> build (wheel/sdist) -> publish to Nexus
+#   sbom.yml         — package CycloneDX SBOM -> Dependency-Track
+#   docker-build.yml — image build/push to the Nexus Docker registry (+ image SBOM)
+#
+# The package lives at the repo root, so project-dir is ".".
+#
+# Triggers:
+#   push to develop   -> ci (test/build/publish to Nexus dev) + package SBOM (dev)
+#                        + dev image built from the freshly built wheel
+#   push tag x.y.z    -> ci (test/build/publish to Nexus prod) + package SBOM (prod)
+#                        + release image installed from Nexus prod + image SBOM
+#   workflow_dispatch -> manual run
+#
+# Runs on the self-hosted runner (declared inside the reusable workflows).
+
+on:
+  push:
+    branches:
+      - "develop"
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+" # release tags (x.y.z)
+  workflow_dispatch:
+
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Test, build the wheel/sdist, publish to Nexus. Exposes `version`.
+  ci:
+    permissions:
+      contents: read
+    uses: CSC-Operations-Coordination-Service/workflow-catalog/.github/workflows/python-ci.yml@develop
+    with:
+      project-dir: .
+      python-version: "3.11"
+    secrets: inherit
+
+  # Package SBOM -> Dependency-Track project "maas-cds".
+  # Consumes the `dist` artifact built by ci. Uses the prod Nexus context on
+  # release tags, dev otherwise.
+  sbom:
+    needs: ci
+    uses: CSC-Operations-Coordination-Service/workflow-catalog/.github/workflows/sbom.yml@develop
+    with:
+      project-dir: .
+      project-name: maas-cds
+      project-version: ${{ needs.ci.outputs.version }}
+      python-version: "3.11"
+      context: ${{ startsWith(github.ref, 'refs/tags/') && 'prod' || 'dev' }}
+    secrets: inherit
+
+  # develop / manual: build the image from the wheel ci just produced (Mode 1).
+  # mount-pip-index is on because installing that wheel still pulls maas-model,
+  # maas-engine and maas-collector from the Nexus dev index.
+  docker-local:
+    needs: ci
+    if: github.ref == 'refs/heads/develop'
+    permissions:
+      contents: read
+      packages: write
+    uses: CSC-Operations-Coordination-Service/workflow-catalog/.github/workflows/docker-build.yml@develop
+    with:
+      image-name: maas-cds
+      context: .
+      dockerfile: Dockerfile.local
+      artifact-name: dist
+      artifact-path: dist/
+      mount-pip-index: true
+      environment: dev
+    secrets: inherit
+
+  # Release only: install maas-cds from the Nexus prod index (Mode 2), push the
+  # semver + latest tags, and publish the image SBOM to Dependency-Track.
+  # push-to-ghcr / push-to-dockerhub / sign-image are available too — turn them
+  # on once the matching secrets (DOCKERHUB_*, COSIGN_*) exist on this repo.
+  docker-registry:
+    needs: ci
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: read
+      packages: write
+    uses: CSC-Operations-Coordination-Service/workflow-catalog/.github/workflows/docker-build.yml@develop
+    with:
+      image-name: maas-cds
+      context: .
+      dockerfile: Dockerfile.registry
+      build-args: |
+        PACKAGE_VERSION=${{ needs.ci.outputs.version }}
+      release: true
+      mount-pip-index: true
+      environment: prod
+      generate-sbom: true
+      sbom-project-name: maas-cds-image
+      sbom-project-version: ${{ needs.ci.outputs.version }}
+    secrets: inherit

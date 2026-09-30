@@ -1,0 +1,42 @@
+{
+    "index_patterns": [
+        "maas-config-completeness*"
+    ],
+    "settings": {
+        "index": {
+            "number_of_shards": 3,
+            "number_of_replicas": 1
+        }
+    },
+    "mappings": {
+        "properties": {
+            "key": {
+                "type": "keyword"
+            },
+            "activated": {
+                "type": "boolean"
+            },
+            "mission": {
+                "type": "keyword"
+            },
+            "satellite_unit": {
+                "type": "keyword"
+            },
+            "service_type": {
+                "type": "keyword"
+            },
+            "service_id": {
+                "type": "keyword"
+            },
+            "start_date": {
+                "type": "date",
+                "locale": "utc"
+            },
+            "end_date": {
+                "type": "date",
+                "locale": "utc"
+            }
+        },
+        "_meta": {}
+    }
+}

@@ -1,0 +1,48 @@
+# The image is built either from the wheel (Dockerfile.local) or straight from
+# the Nexus PyPI index (Dockerfile.registry), so the build context only needs
+# dist/, resources/ and conf/. The rest is excluded to keep the context small.
+
+# Sources and tests — already inside the wheel
+src
+tests
+
+#python ignores
+venv
+.venv*
+.eggs
+*.egg-info
+.tox
+.pytest_cache
+__pycache__
+*.py[cod]
+# dist # Needed as CI get build from local
+docs
+
+#CI reports and SBOM artifacts
+.coverage
+coverage.xml
+junit*.xml
+pytest-report*
+sbom-python.cdx.json
+.sbom-venv
+
+#ide ignore
+.vscode
+.idea
+
+#git ignores
+.git
+.github
+.gitignore
+.gitlab-cy.yml
+.pre-commit-config.yaml
+ci
+*.md
+
+#Docker and build ignores
+charts/
+Dockerfile*
+.dockerignore
+
+#other ignores
+*.exe

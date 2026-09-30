@@ -1,0 +1,54 @@
+{
+    "index_patterns": [
+        "cds-interface-product-deletion*"
+    ],
+    "settings": {
+        "index": {
+            "number_of_shards": 3,
+            "number_of_replicas": 1
+        }
+    },
+    "mappings": {
+        "properties": {
+            "updateTime": {
+                "type": "date",
+                "format": "date_time",
+                "locale": "utc"
+            },
+            "reportName": {
+                "type": "keyword"
+            },
+            "product_name": {
+                "type": "keyword"
+            },
+            "jira_issue": {
+                "type": "keyword"
+            },
+            "interface_type": {
+                "type": "keyword"
+            },
+            "DD_DAS_status": {
+                "type": "keyword"
+            },
+            "LTA_Acri_status": {
+                "type": "keyword"
+            },
+            "LTA_CloudFerro_status": {
+                "type": "keyword"
+            },
+            "LTA_Exprivia_status": {
+                "type": "keyword"
+            },
+            "LTA_S5P_DLR_status": {
+                "type": "keyword"
+            },
+            "LTA_Werum_status": {
+                "type": "keyword"
+            },
+            "effective_product_name": {
+                "type": "keyword"
+            }
+        },
+        "_meta": {}
+    }
+}

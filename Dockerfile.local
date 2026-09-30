@@ -1,0 +1,69 @@
+# syntax=docker/dockerfile:1
+#
+# Mode 1 — "local": install the maas-cds wheel produced by a local or CI build.
+# In the pipeline the wheel is handed over via actions/upload-artifact +
+# download-artifact (see .github/workflows/maas-cds.yml, job `docker-local`);
+# locally just run `tox -e build` first. The `dist/` directory is expected to
+# be present in the build context.
+#
+# Build locally:
+#   tox -e build
+#   docker build -f Dockerfile.local -t maas-cds:dev \
+#     --secret id=pip_index_url,env=PIP_INDEX_URL .
+#
+ARG PYTHON_VERSION=3.11
+
+FROM python:${PYTHON_VERSION}-slim AS runtime
+LABEL Author="Serco - Space unit"
+
+# Don't write .pyc files / buffer stdout (better container logs).
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# Bring in the pre-built distribution and install it. maas-model, maas-engine
+# and maas-collector are NOT in the context any more (they were sibling
+# modules in the monorepo): pip pulls them from the Nexus PyPI index.
+#
+# The index URL may embed credentials, so it is passed as a BuildKit secret —
+# it never lands in an image layer nor in `docker history`. Without the secret
+# the build falls back to pip's default index, which is what a developer
+# building against a local/proxied index gets.
+COPY dist/ /tmp/dist/
+RUN --mount=type=secret,id=pip_index_url \
+    set -eu; \
+    if [ -s /run/secrets/pip_index_url ]; then \
+        PIP_INDEX_URL="$(cat /run/secrets/pip_index_url)"; \
+        export PIP_INDEX_URL; \
+    fi; \
+    pip install --no-cache-dir /tmp/dist/*.whl; \
+    rm -rf /tmp/dist
+
+# OpenSearch index templates, consumed by the database initialisation scripts.
+COPY resources/ resources/
+# Sample engine configuration — mount your own over /conf in production.
+COPY conf/cds-engine-conf.json /conf/default-engine.conf
+
+# Create a non-root user and group, and hand over the application files.
+RUN groupadd -r appuser && useradd -r -g appuser appuser \
+    && chown -R appuser:appuser /app /conf
+
+USER appuser
+
+# Host the health check server binds to, and the port it listens on. Read by
+# maas_engine through its --healthcheck-hostname / --healthcheck-port options.
+ENV HEALTHCHECK_HOSTNAME=localhost
+ENV HEALTHCHECK_PORT=8080
+
+# Health check to ensure the container is running properly. Uses python rather
+# than curl: the slim base image ships no curl, and py-healthcheck serves the
+# report on "/" (see maas_engine.health.health).
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD python -c 'import os, sys, urllib.request; sys.exit(0 if urllib.request.urlopen("http://" + os.environ["HEALTHCHECK_HOSTNAME"] + ":" + os.environ["HEALTHCHECK_PORT"] + "/", timeout=5).status == 200 else 1)'
+
+VOLUME ["/conf"]
+
+ENTRYPOINT [ "python", "-m"]
+
+CMD ["maas_engine", "-v", "--config", "/conf/default-engine.conf"]

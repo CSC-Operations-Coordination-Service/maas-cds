@@ -1,0 +1,303 @@
+{
+    "aliases": {
+        "cds-datatake": {}
+    },
+    "index_patterns": [
+        "cds-datatake-*"
+    ],
+    "settings": {
+        "index": {
+            "number_of_shards": 3,
+            "number_of_replicas": 1,
+            "mapping": {
+                "total_fields": {
+                    "limit": "2000"
+                }
+            }
+        }
+    },
+    "mappings": {
+        "properties": {
+            "updateTime": {
+                "type": "date",
+                "format": "date_time",
+                "locale": "utc"
+            },
+            "key": {
+                "type": "keyword"
+            },
+            "name": {
+                "type": "keyword"
+            },
+            "mission": {
+                "type": "keyword"
+            },
+            "satellite_unit": {
+                "type": "keyword"
+            },
+            "datatake_id": {
+                "type": "keyword"
+            },
+            "hex_datatake_id": {
+                "type": "keyword"
+            },
+            "application_date": {
+                "type": "date",
+                "locale": "utc"
+            },
+            "observation_time_start": {
+                "type": "date",
+                "locale": "utc"
+            },
+            "observation_duration": {
+                "type": "long"
+            },
+            "observation_time_stop": {
+                "type": "date",
+                "locale": "utc"
+            },
+            "l0_sensing_time_start": {
+                "type": "date",
+                "locale": "utc"
+            },
+            "l0_sensing_duration": {
+                "type": "long"
+            },
+            "l0_sensing_time_stop": {
+                "type": "date",
+                "locale": "utc"
+            },
+            "number_of_scenes": {
+                "type": "integer"
+            },
+            "number_of_expected_tiles": {
+                "type": "integer"
+            },
+            "absolute_orbit": {
+                "type": "keyword"
+            },
+            "relative_orbit": {
+                "type": "keyword"
+            },
+            "polarization": {
+                "type": "keyword"
+            },
+            "instrument_mode": {
+                "type": "keyword"
+            },
+            "instrument_swath": {
+                "type": "keyword"
+            },
+            "timeliness": {
+                "type": "keyword"
+            },
+            "cams_tickets": {
+                "type": "keyword"
+            },
+            "datastrip_ids": {
+                "type": "keyword"
+            },
+            "product_group_ids": {
+                "type": "keyword"
+            },
+            "last_attached_ticket": {
+                "type": "keyword"
+            },
+            "last_attached_ticket_url": {
+                "type": "keyword"
+            },
+            "cams_origin": {
+                "type": "keyword"
+            },
+            "cams_description": {
+                "type": "keyword"
+            },
+            "missing_periods": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "keyword"
+                    },
+                    "product_type": {
+                        "type": "keyword"
+                    },
+                    "sensing_start_date": {
+                        "type": "date",
+                        "locale": "utc"
+                    },
+                    "sensing_end_date": {
+                        "type": "date",
+                        "locale": "utc"
+                    },
+                    "duration": {
+                        "type": "long"
+                    }
+                }
+            },
+            "duplicateds": {
+                "type": "object",
+                "properties": {
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "keyword"
+                            },
+                            "product_type": {
+                                "type": "keyword"
+                            },
+                            "sensing_start_date": {
+                                "type": "date",
+                                "locale": "utc"
+                            },
+                            "sensing_end_date": {
+                                "type": "date",
+                                "locale": "utc"
+                            },
+                            "publication_date": {
+                                "type": "date",
+                                "locale": "utc"
+                            },
+                            "duplicated_percentage": {
+                                "type": "float"
+                            },
+                            "paired_with": {
+                                "type": "keyword"
+                            },
+                            "paired_with_publication_date": {
+                                "type": "date",
+                                "locale": "utc"
+                            },
+                            "deleted_product": {
+                                "type": "object",
+                                "properties": {
+                                    "DD": {
+                                        "type": "keyword"
+                                    },
+                                    "LTA": {
+                                        "type": "keyword"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "pairs_count": {
+                        "type": "integer"
+                    },
+                    "deletions": {
+                        "type": "object",
+                        "properties": {
+                            "service_type": {
+                                "type": "keyword"
+                            },
+                            "ticket": {
+                                "type": "keyword"
+                            },
+                            "targeted_products_count": {
+                                "type": "integer"
+                            },
+                            "deleted_products_count": {
+                                "type": "integer"
+                            },
+                            "surviving_pairs_count": {
+                                "type": "integer"
+                            },
+                            "deleted_not_duplicated_products": {
+                                "type": "keyword"
+                            },
+                            "deleted_not_duplicated_products_count": {
+                                "type": "integer"
+                            },
+                            "expected_pairs_count": {
+                                "type": "integer"
+                            },
+                            "mentioned_pairs_count": {
+                                "type": "integer"
+                            },
+                            "deleted_pairs_count": {
+                                "type": "integer"
+                            },
+                            "deletion_completenness_percentange": {
+                                "type": "float"
+                            },
+                            "deleted_percentage": {
+                                "type": "float"
+                            },
+                            "status": {
+                                "type": "keyword"
+                            },
+                            "status_message": {
+                                "type": "keyword"
+                            }
+                        }
+                    },
+                    "deletions_status": {
+                        "type": "keyword"
+                    },
+                    "datastrip_pairs": {
+                        "type": "object",
+                        "properties": {
+                            "overlap_percentage": {
+                                "type": "float"
+                            },
+                            "datastrips": {
+                                "type": "object",
+                                "properties": {
+                                    "datastrip_id": {
+                                        "type": "keyword"
+                                    },
+                                    "products": {
+                                        "type": "object",
+                                        "properties": {
+                                            "product_name": {
+                                                "type": "keyword"
+                                            },
+                                            "product_type": {
+                                                "type": "keyword"
+                                            },
+                                            "deletions": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "service_type": {
+                                                        "type": "keyword"
+                                                    },
+                                                    "ticket": {
+                                                        "type": "keyword"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "deletions": {
+                                        "type": "object",
+                                        "properties": {
+                                            "service_type": {
+                                                "type": "keyword"
+                                            },
+                                            "ticket": {
+                                                "type": "keyword"
+                                            },
+                                            "deleted_products_count": {
+                                                "type": "integer"
+                                            },
+                                            "deleted_products_expected": {
+                                                "type": "integer"
+                                            },
+                                            "deleted_product_percentage": {
+                                                "type": "float"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "_meta": {
+            "partition_field": "observation_time_start",
+            "partition_format": "s1-s2"
+        }
+    }
+}
