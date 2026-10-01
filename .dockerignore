@@ -36,7 +36,6 @@ sbom-python.cdx.json
 .gitignore
 .gitlab-cy.yml
 .pre-commit-config.yaml
-ci
 *.md
 
 #Docker and build ignores

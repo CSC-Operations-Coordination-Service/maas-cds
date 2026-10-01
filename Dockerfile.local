@@ -26,18 +26,29 @@ WORKDIR /app
 # and maas-collector are NOT in the context any more (they were sibling
 # modules in the monorepo): pip pulls them from the Nexus PyPI index.
 #
-# The index URL may embed credentials, so it is passed as a BuildKit secret —
-# it never lands in an image layer nor in `docker history`. Without the secret
-# the build falls back to pip's default index, which is what a developer
-# building against a local/proxied index gets.
+# `pip_index_url` secret = Nexus PyPI simple index, credential-free, e.g.
+#   http://nexus.example.com:8081/repository/pypi-dev-group/simple
+# The host is derived from the URL and declared trusted, since the Nexus index
+# is served over plain HTTP (pip ignores non-HTTPS indexes otherwise).
+# Credentials arrive separately, as a `netrc` secret mounted at /root/.netrc —
+# the same split the nexus-context action uses on the runner. BuildKit mounts
+# secrets 0400 root-owned, which is what Python's netrc module demands.
+#
+# Without the secret the build falls back to pip's default index, which is what
+# a developer building against a local/proxied index gets.
 COPY dist/ /tmp/dist/
 RUN --mount=type=secret,id=pip_index_url \
+    --mount=type=secret,id=netrc,target=/root/.netrc \
     set -eu; \
     if [ -s /run/secrets/pip_index_url ]; then \
-        PIP_INDEX_URL="$(cat /run/secrets/pip_index_url)"; \
-        export PIP_INDEX_URL; \
+        index_url="$(tr -d '\r\n' < /run/secrets/pip_index_url)"; \
+        hostpart="${index_url#*://}"; hostpart="${hostpart%%/*}"; \
+        index_host="${hostpart##*@}"; index_host="${index_host%%:*}"; \
+        echo "Nexus index host: $index_host"; \
+        PIP_INDEX_URL="$index_url"; PIP_TRUSTED_HOST="$index_host"; \
+        export PIP_INDEX_URL PIP_TRUSTED_HOST; \
     fi; \
-    pip install --no-cache-dir /tmp/dist/*.whl; \
+    pip install --no-cache-dir --no-input /tmp/dist/*.whl; \
     rm -rf /tmp/dist
 
 # OpenSearch index templates, consumed by the database initialisation scripts.
