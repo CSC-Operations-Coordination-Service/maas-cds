@@ -1,9 +1,9 @@
 """Custom CDS model definition for cds completeness splitted for S3"""
 
 import logging
-import re
 import typing
 
+from maas_cds.lib.orbit_id_strategy import S3DatatakeIdStrategy
 from maas_cds.model import generated
 
 
@@ -22,7 +22,15 @@ class CdsCompletenessSplittedS3(CdsCompletenessSplitted):
 
     MISSION = "S3"
 
-    DATATAKE_ID_REGEX_FORMAT = r"S3[A-Z]-\d\d\d-\d\d\d"
+    ORBIT_ID_STRATEGY = S3DatatakeIdStrategy
+
+    DATATAKE_ID_REGEX_FORMAT = S3DatatakeIdStrategy.ID_REGEX_FORMAT
+
+    # Product type triggering the missing orbit check: the S3 datatake holding
+    # it is the reference to spot the orbits absent from the database
+    MISSING_ORBIT_PRODUCT_TYPE = "TM_0_NAT___"
+
+    MISSING_ORBIT_TIMELINESS = "AL"
 
     def find_brother_products_scan(self):
         """Specific method to query products for S3 Completeness
@@ -51,9 +59,10 @@ class CdsCompletenessSplittedS3(CdsCompletenessSplitted):
         Returns:
             bool: True if this product enable a check
         """
-        if self.product_type == "TM_0_NAT___" and self.timeliness == "AL":
-            return True
-        return False
+        return (
+            self.product_type == self.MISSING_ORBIT_PRODUCT_TYPE
+            and self.timeliness == self.MISSING_ORBIT_TIMELINESS
+        )
 
     @classmethod
     def generate_datatake_ids_list_between_2_ids(
@@ -72,39 +81,7 @@ class CdsCompletenessSplittedS3(CdsCompletenessSplitted):
         Returns:
             typing.List[str]: The list of datatake_ids between the 2 references
         """
-        datatake_list = []
-
-        if not re.search(cls.DATATAKE_ID_REGEX_FORMAT, datatake_ref_1) or not re.search(
-            cls.DATATAKE_ID_REGEX_FORMAT, datatake_ref_2
-        ):
-            raise ValueError("Inputs arguments does not respect the expected format")
-
-        if datatake_ref_1 == datatake_ref_2:
-            return []
-        minref, maxref = cls.sort_datatake_id(datatake_ref_1, datatake_ref_2)
-
-        LOGGER.debug("Generate missing datatake between %s and %s", minref, maxref)
-
-        while minref < maxref:
-
-            satellite, cycle_count, relative_orbit = minref.split("-")
-            cycle_count = int(cycle_count)
-            relative_orbit = int(relative_orbit)
-
-            relative_orbit += 1
-            if relative_orbit > 385:
-                relative_orbit = 1
-                cycle_count += 1
-
-            minref = f"{satellite}-{cycle_count:03}-{relative_orbit:03}"
-
-            if minref == maxref:
-                break
-
-            LOGGER.debug("- Add  missing %s", minref)
-            datatake_list.append(minref)
-
-        return datatake_list
+        return cls.ORBIT_ID_STRATEGY.ids_between(datatake_ref_1, datatake_ref_2)
 
     @classmethod
     def sort_datatake_id(
@@ -122,20 +99,4 @@ class CdsCompletenessSplittedS3(CdsCompletenessSplitted):
         Returns:
             Tuple[str, str]: The 2 datatake_ids string sorted in ascending order in a tuple
         """
-        if not re.search(cls.DATATAKE_ID_REGEX_FORMAT, datatake_id_1) or not re.search(
-            cls.DATATAKE_ID_REGEX_FORMAT, datatake_id_2
-        ):
-            raise ValueError("Inputs arguments does not respect the expected format")
-
-        # Remove satellite part
-        ref_part_1 = datatake_id_1.split("-")
-        ref_part_2 = datatake_id_2.split("-")
-
-        # Cycle number contains 385 cycle so it's fine to mulitple by 1000 to sort them
-        val1 = int(ref_part_1[1]) * 10000 + int(ref_part_1[2])
-        val2 = int(ref_part_2[1]) * 10000 + int(ref_part_2[2])
-        return (
-            (datatake_id_1, datatake_id_2)
-            if val2 >= val1
-            else (datatake_id_2, datatake_id_1)
-        )
+        return cls.ORBIT_ID_STRATEGY.sort_ids(datatake_id_1, datatake_id_2)

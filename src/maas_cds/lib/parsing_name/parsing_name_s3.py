@@ -5,6 +5,14 @@ from maas_model import datestr_to_utc_datetime
 
 LOGGER = logging.getLogger("ParsingNameS3")
 
+# A S3 product type is 11 characters long, its last one tells if the product is a
+# granule ("G") or a full orbit ("_")
+S3_PRODUCT_TYPE_LENGTH = 11
+
+GRANULE_INDICATOR_INDEX = 10
+
+GRANULE_INDICATOR = "G"
+
 
 def extract_data_from_product_name_s3(product_name):
     """Method to extract data from a sentinel 3 product name
@@ -133,3 +141,29 @@ def extract_data_from_product_name_s3(product_name):
         )
 
     return data
+
+
+def granule_product_type_to_product_type(product_type: str) -> str:
+    """Normalize the product type of a L0PP granule
+
+    The 11th character of a S3 product type tells if the product is a granule
+    ("G") or a full orbit ("_"). Granules are only exchanged inside the S3 PDGS:
+    everywhere else, the completeness configuration and the products indices use
+    the full orbit flavour of the type.
+
+    ex: TM_0_NAT__G -> TM_0_NAT___
+
+    Args:
+        product_type (str): the product type to normalize
+
+    Returns:
+        str: the full orbit product type, unchanged if it is not a granule one
+    """
+    if (
+        product_type
+        and len(product_type) == S3_PRODUCT_TYPE_LENGTH
+        and product_type[GRANULE_INDICATOR_INDEX] == GRANULE_INDICATOR
+    ):
+        return f"{product_type[:GRANULE_INDICATOR_INDEX]}_"
+
+    return product_type
