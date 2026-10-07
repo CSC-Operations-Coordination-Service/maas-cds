@@ -1,8 +1,11 @@
 """Custom CDS model definition for s2 tiles"""
 
 import geomet
-import logging, copy, opensearchpy
+import logging, opensearchpy
 from itertools import groupby
+import shapely
+from shapely.affinity import translate
+from shapely.geometry import MultiPolygon, Polygon, box, mapping, shape
 from maas_cds.model.generated import CdsS2Tilpar
 
 LOGGER = logging.getLogger("S2Tiles")
@@ -42,59 +45,45 @@ class S2Tiles(CdsS2Tilpar):
         Get the list of tiles intersected by the given geojson footprint.
         """
         assert footprint
-        result = []
 
-        # if the footprint cross antemeridian try correction and intersection
-        if S2Tiles.is_crossing_antemeridian(footprint):
-            corrected_geojson = S2Tiles.correct_polygon(footprint)
-            corrected_geojson_without_duplicate = S2Tiles.remove_duplicate_points(
-                corrected_geojson
+        if not S2Tiles.is_crossing_antemeridian(footprint):
+            return S2Tiles.search_intersecting_tiles(
+                S2Tiles.remove_duplicate_points(footprint)
             )
-            try:
-                tiles_search = (
-                    S2Tiles.search()
-                    .filter(
-                        "geo_shape",
-                        geometry={
-                            "relation": "intersects",
-                            "shape": corrected_geojson_without_duplicate,
-                        },
-                    )
-                    .scan()
-                )
-                result = [tile.name for tile in tiles_search]
-            except opensearchpy.exceptions.RequestError as ex:
-                # in case of intersection request error we return the full S2Tile list
-                LOGGER.error(
-                    "Error requesting intercection between ST2Tiles and corrected polygon! Requesting with original polygon."
-                )
-                # the global search is done here because the number of occurrences of the error is very low.
-                tiles_search = (
-                    S2Tiles.search()
-                    .filter(
-                        "geo_shape",
-                        geometry={
-                            "relation": "intersects",
-                            "shape": S2Tiles.remove_duplicate_points(footprint),
-                        },
-                    )
-                    .scan()
-                )
-                result = [tile.name for tile in tiles_search]
-        else:
-            tiles_search = (
-                S2Tiles.search()
-                .filter(
-                    "geo_shape",
-                    geometry={
-                        "relation": "intersects",
-                        "shape": S2Tiles.remove_duplicate_points(footprint),
-                    },
-                )
-                .scan()
+
+        corrected_geojson = S2Tiles.correct_polygon(footprint)
+        try:
+            return S2Tiles.search_intersecting_tiles(corrected_geojson)
+        except opensearchpy.exceptions.RequestError as ex:
+            # Never fall back on the original footprint: across the antemeridian it is
+            # understood as a band around the globe and matches thousands of tiles.
+            # The bounding boxes over-estimate the tiles but stay local.
+            LOGGER.error(
+                "Error requesting intersection between S2Tiles and corrected polygon "
+                "(%s)! Requesting with its bounding boxes.",
+                ex,
             )
-            result = [tile.name for tile in tiles_search]
-        return result
+            return S2Tiles.search_intersecting_tiles(
+                S2Tiles.bounding_boxes(corrected_geojson)
+            )
+
+    @staticmethod
+    def search_intersecting_tiles(geojson: dict) -> list[str]:
+        """
+        Get the name of the tiles intersecting the given geojson geometry.
+        """
+        tiles_search = (
+            S2Tiles.search()
+            .filter(
+                "geo_shape",
+                geometry={
+                    "relation": "intersects",
+                    "shape": geojson,
+                },
+            )
+            .scan()
+        )
+        return [tile.name for tile in tiles_search]
 
     @staticmethod
     def remove_duplicate_points(footprint: dict) -> dict:
@@ -128,25 +117,41 @@ class S2Tiles(CdsS2Tilpar):
         return False
 
     @staticmethod
-    def correct_polygon(geojson_footprint: dict):
+    def correct_polygon(geojson_footprint: dict) -> dict:
         """
-        correct longitudes for antemeridian geometries
+        Cut a polygon crossing the antemeridian into a geojson multipolygon
+        whose parts stay within [-180, 180] (RFC 7946 section 3.1.9)
         """
+        # Shift the western longitudes by 360° to get a continuous polygon over [0, 360]
+        shell, *holes = [
+            [
+                (float(lon) + 360 if float(lon) < 0 else float(lon), float(lat))
+                for lon, lat, *_ in ring
+            ]
+            for ring in geojson_footprint["coordinates"]
+        ]
+        unwrapped = Polygon(shell, holes)
+        if not unwrapped.is_valid:
+            unwrapped = unwrapped.buffer(0)
 
-        corrected_coordinate = []
+        eastern = unwrapped.intersection(box(0, -90, 180, 90))
+        western = translate(unwrapped.intersection(box(180, -90, 360, 90)), xoff=-360)
 
-        for coordinates in geojson_footprint["coordinates"]:
-            for coordinate in coordinates:
-                corrected_lon = float(coordinate[0])
-                if 179.99 <= abs(corrected_lon) <= 180:
-                    # This point are too much dangerous don't keep it
-                    continue
-                if corrected_lon < 0:
-                    corrected_lon = corrected_lon + 360
-                corrected_coordinate.append([corrected_lon, coordinate[1]])
+        return mapping(
+            MultiPolygon(
+                [
+                    part
+                    for part in shapely.get_parts([eastern, western])
+                    if isinstance(part, Polygon) and not part.is_empty
+                ]
+            )
+        )
 
-        corrected_geojson_footprint = copy.deepcopy(geojson_footprint)
-
-        corrected_geojson_footprint["coordinates"] = [corrected_coordinate]
-
-        return corrected_geojson_footprint
+    @staticmethod
+    def bounding_boxes(geojson: dict) -> dict:
+        """
+        Get the bounding box of each part of a geojson geometry as a multipolygon
+        """
+        return mapping(
+            MultiPolygon([part.envelope for part in shapely.get_parts(shape(geojson))])
+        )

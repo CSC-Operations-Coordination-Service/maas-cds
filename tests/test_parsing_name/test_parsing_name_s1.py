@@ -479,6 +479,26 @@ def test_s1d_oper_random():
 
 
 @pytest.mark.parametrize(
+    "product_name, satellite_unit",
+    [
+        ("S1D_AUX_SCS_V20260319T000000_G20260709T000000.SAFE", "S1D"),
+        ("S1C_AUX_SCS_V20250224T000000_G20260709T000000.SAFE", "S1C"),
+        ("S1B_AUX_SCS_V20190514T000000_G20260709T000000.SAFE", "S1B"),
+        ("S1A_AUX_SCS_V20190228T092500_G20260709T000000.SAFE", "S1A"),
+    ],
+)
+def test_s1_aux_scs(product_name, satellite_unit):
+    result_dict = extract_data_from_product_name_s1(product_name)
+
+    assert result_dict == {
+        "satellite_unit": satellite_unit,
+        "mission": "S1",
+        "product_type": "AUX_SCS",
+        "product_level": "L__",
+    }
+
+
+@pytest.mark.parametrize(
     "product_name, expected_orbit",
     [
         # HKTM (HK_RAW) products: orbit is the 6-digit field at offset 49:55,
