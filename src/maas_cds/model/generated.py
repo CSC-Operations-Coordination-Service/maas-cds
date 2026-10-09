@@ -4,7 +4,7 @@ DA0 classes generated from index templates.
 
 **DO NOT EDIT, ONLY INHERIT !**
 
-Generated date: 2026-08-10T13:54:22.817201+00:00
+Generated date: 2026-09-14T14:55:58.838311+00:00
 
 Generated from:
     - resources/templates/cds-acquisition-pass-status_template.json
@@ -2008,6 +2008,10 @@ class CdsDeletionIssue(MAASDocument):
     def _matches(cls, hit):
         return hit["_index"].startswith("cds-deletion-issue")
 
+    attachment_ids = Keyword()
+
+    attachments = Keyword()
+
     created = ZuluDate()
 
     deletion_cause = Keyword()
@@ -2414,6 +2418,10 @@ class CdsInterfaceProductDeletion(MAASDocument):
     LTA_S5P_DLR_status = Keyword()
 
     LTA_Werum_status = Keyword()
+
+    attachment_created = ZuluDate()
+
+    attachment_id = Keyword()
 
     effective_product_name = Keyword()
 
@@ -3318,6 +3326,10 @@ class DeletionIssue(MAASRawDocument):
     _PARTITION_FIELD = "ingestionTime"
 
     _PARTITION_FIELD_FORMAT = "static"
+
+    attachment_ids = Keyword()
+
+    attachments = Keyword()
 
     created = ZuluDate()
 
@@ -4236,6 +4248,10 @@ class ProductDeletion(MAASRawDocument):
     _PARTITION_FIELD = "ingestionTime"
 
     _PARTITION_FIELD_FORMAT = "static"
+
+    attachment_created = ZuluDate()
+
+    attachment_id = Keyword()
 
     interface_type = Keyword()
 

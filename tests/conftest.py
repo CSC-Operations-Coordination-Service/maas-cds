@@ -16,6 +16,7 @@ from data.s3_data_test import *
 from data.dataflow_stub import *
 from data.metrics_product_test import *
 from data.dd_attrs import *
+from data.deletion_data_test import *
 
 
 @pytest.fixture(scope="session", autouse=True)
