@@ -7,13 +7,13 @@ from maas_cds.model import generated
 
 __all__ = [
     "MaasConfig",
-    "MaasConfigCompleteness",
-    "MaasConfigCompletenessS3",
-    "MaasConfigCompletenessS5",
-    "MaasConfigService",
-    "MaasConfigMission",
-    "MaasConfigSatellite",
-    "MaasConfigDataflow",
+    "OcsConfigCompleteness",
+    "OcsConfigCompletenessS3",
+    "OcsConfigCompletenessS5",
+    "OcsConfigService",
+    "OcsConfigMission",
+    "OcsConfigSatellite",
+    "OcsConfigDataflow",
 ]
 
 
@@ -50,31 +50,31 @@ class MaasConfig(generated.MaasConfig):
         return MaasConfigManager().get_config(cls.__name__)
 
 
-class MaasConfigCompleteness(generated.MaasConfigCompleteness, MaasConfig):
+class OcsConfigCompleteness(generated.OcsConfigCompleteness, MaasConfig):
     pass
 
 
-class MaasConfigCompletenessS3(generated.MaasConfigCompletenessS3, MaasConfig):
+class OcsConfigCompletenessS3(generated.OcsConfigCompletenessS3, MaasConfig):
     pass
 
 
-class MaasConfigCompletenessS5(generated.MaasConfigCompletenessS5, MaasConfig):
+class OcsConfigCompletenessS5(generated.OcsConfigCompletenessS5, MaasConfig):
     pass
 
 
-class MaasConfigService(generated.MaasConfigService, MaasConfig):
+class OcsConfigService(generated.OcsConfigService, MaasConfig):
     pass
 
 
-class MaasConfigMission(generated.MaasConfigMission, MaasConfig):
+class OcsConfigMission(generated.OcsConfigMission, MaasConfig):
     pass
 
 
-class MaasConfigSatellite(generated.MaasConfigSatellite, MaasConfig):
+class OcsConfigSatellite(generated.OcsConfigSatellite, MaasConfig):
     pass
 
 
-class MaasConfigDataflow(generated.MaasConfigDataflow, MaasConfig):
+class OcsConfigDataflow(generated.OcsConfigDataflow, MaasConfig):
 
     def load(self):
         # Here i need to handle multiple document and detect splitted

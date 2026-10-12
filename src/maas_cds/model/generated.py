@@ -4,7 +4,7 @@ DA0 classes generated from index templates.
 
 **DO NOT EDIT, ONLY INHERIT !**
 
-Generated date: 2026-08-10T13:54:22.817201+00:00
+Generated date: 2026-10-12T12:21:26.084318+00:00
 
 Generated from:
     - resources/templates/cds-acquisition-pass-status_template.json
@@ -36,14 +36,14 @@ Generated from:
     - resources/templates/cds-s5-completeness_template.json
     - resources/templates/cds-sat-unavailability_template.json
     - resources/templates/maas-config-collector_template.json
-    - resources/templates/maas-config-completeness-s3_template.json
-    - resources/templates/maas-config-completeness-s5_template.json
-    - resources/templates/maas-config-completeness_template.json
-    - resources/templates/maas-config-dataflow_template.json
-    - resources/templates/maas-config-mission_template.json
-    - resources/templates/maas-config-satellite_template.json
-    - resources/templates/maas-config-service_template.json
     - resources/templates/maas-config_template.json
+    - resources/templates/ocs-config-completeness-s3_template.json
+    - resources/templates/ocs-config-completeness-s5_template.json
+    - resources/templates/ocs-config-completeness_template.json
+    - resources/templates/ocs-config-dataflow_template.json
+    - resources/templates/ocs-config-mission_template.json
+    - resources/templates/ocs-config-satellite_template.json
+    - resources/templates/ocs-config-service_template.json
     - resources/templates/raw-data-acq-passes-status-edrs_template.json
     - resources/templates/raw-data-app-product_template.json
     - resources/templates/raw-data-aps-edrs_template.json
@@ -166,19 +166,6 @@ __all__ = [
     "LtaProduct",
     "MaasConfig",
     "MaasConfigCollector",
-    "MaasConfigCompleteness",
-    "MaasConfigCompletenessS3",
-    "MaasConfigCompletenessS3Records",
-    "MaasConfigCompletenessS5",
-    "MaasConfigCompletenessS5Records",
-    "MaasConfigDataflow",
-    "MaasConfigDataflowMetadata",
-    "MaasConfigDataflowRecords",
-    "MaasConfigDataflowRecordsAuxip",
-    "MaasConfigDataflowRecordsServicesConfig",
-    "MaasConfigMission",
-    "MaasConfigSatellite",
-    "MaasConfigService",
     "MetricsProduct",
     "MpAllProduct",
     "MpHktmAcquisitionProduct",
@@ -186,6 +173,19 @@ __all__ = [
     "MpProduct",
     "MpcipProduct",
     "MpipProduct",
+    "OcsConfigCompleteness",
+    "OcsConfigCompletenessS3",
+    "OcsConfigCompletenessS3Records",
+    "OcsConfigCompletenessS5",
+    "OcsConfigCompletenessS5Records",
+    "OcsConfigDataflow",
+    "OcsConfigDataflowMetadata",
+    "OcsConfigDataflowRecords",
+    "OcsConfigDataflowRecordsAuxip",
+    "OcsConfigDataflowRecordsServicesConfig",
+    "OcsConfigMission",
+    "OcsConfigSatellite",
+    "OcsConfigService",
     "PripProduct",
     "ProductDeletion",
     "S3pMetricsCirculationAgent",
@@ -3527,270 +3527,7 @@ class MaasConfigCollector(MAASDocument):
     def _matches(cls, hit):
         return hit["_index"].startswith("maas-config-collector")
 
-
-class MaasConfigCompleteness(MAASDocument):
-    """
-    Mapping class for index: maas-config-completeness
-
-    Generated from: resources/templates/maas-config-completeness_template.json
-    """
-
-    class Index:
-        "inner class for DSL"
-
-        name = "maas-config-completeness"
-
-    @classmethod
-    def _matches(cls, hit):
-        return hit["_index"].startswith("maas-config-completeness")
-
-    activated = Boolean()
-
-    end_date = ZuluDate()
-
-    key = Keyword()
-
-    mission = Keyword()
-
-    satellite_unit = Keyword()
-
-    service_id = Keyword()
-
-    service_type = Keyword()
-
-    start_date = ZuluDate()
-
-
-class MaasConfigCompletenessS3Records(InnerDoc):
-    """
-    Inner document class for parent class: MaasConfigCompletenessS3
-
-    Generated from property: records
-    """
-
-    product_type = Keyword()
-
-    sensing_in_minutes = Long()
-
-    timeliness = Keyword()
-
-
-class MaasConfigCompletenessS3(MAASDocument):
-    """
-    Mapping class for index: maas-config-completeness-s3
-
-    Generated from: resources/templates/maas-config-completeness-s3_template.json
-    """
-
-    class Index:
-        "inner class for DSL"
-
-        name = "maas-config-completeness-s3"
-
-    @classmethod
-    def _matches(cls, hit):
-        return hit["_index"].startswith("maas-config-completeness-s3")
-
-    key = Keyword()
-
-    latest = Boolean()
-
-    records = Object(MaasConfigCompletenessS3Records)
-
-
-class MaasConfigCompletenessS5Records(InnerDoc):
-    """
-    Inner document class for parent class: MaasConfigCompletenessS5
-
-    Generated from property: records
-    """
-
-    product_type = Keyword()
-
-    sensing_in_minutes = Long()
-
-    timeliness = Keyword()
-
-
-class MaasConfigCompletenessS5(MAASDocument):
-    """
-    Mapping class for index: maas-config-completeness-s5
-
-    Generated from: resources/templates/maas-config-completeness-s5_template.json
-    """
-
-    class Index:
-        "inner class for DSL"
-
-        name = "maas-config-completeness-s5"
-
-    @classmethod
-    def _matches(cls, hit):
-        return hit["_index"].startswith("maas-config-completeness-s5")
-
-    key = Keyword()
-
-    latest = Boolean()
-
-    records = Object(MaasConfigCompletenessS5Records)
-
-
-class MaasConfigDataflowMetadata(InnerDoc):
-    """
-    Inner document class for parent class: MaasConfigDataflow
-
-    Generated from property: metadata
-    """
-
-    createAt = ZuluDate()
-
-    updateAt = ZuluDate()
-
-
-class MaasConfigDataflowRecordsServicesConfig(InnerDoc):
-    """
-    Inner document class for parent class: MaasConfigDataflowRecords
-
-    Generated from property: services_config
-    """
-
-
-class MaasConfigDataflowRecordsAuxip(InnerDoc):
-    """
-    Inner document class for parent class: MaasConfigDataflowRecords
-
-    Generated from property: AUXIP
-    """
-
-    frequency = Long()
-
-    provider = Keyword()
-
-    timeliness = Long()
-
-
-class MaasConfigDataflowRecords(InnerDoc):
-    """
-    Inner document class for parent class: MaasConfigDataflow
-
-    Generated from property: records
-    """
-
-    product_type = Keyword()
-
-    product_level = Keyword()
-
-    description = Text()
-
-    note = Text()
-
-    payload = Keyword()
-
-    mode = Keyword()
-
-    services_config = Object(MaasConfigDataflowRecordsServicesConfig)
-
-    AUXIP = Object(MaasConfigDataflowRecordsAuxip)
-
-
-class MaasConfigDataflow(MAASDocument):
-    """
-    Mapping class for index: maas-config-dataflow
-
-    Generated from: resources/templates/maas-config-dataflow_template.json
-    """
-
-    class Index:
-        "inner class for DSL"
-
-        name = "maas-config-dataflow"
-
-    @classmethod
-    def _matches(cls, hit):
-        return hit["_index"].startswith("maas-config-dataflow")
-
-    key = Keyword()
-
-    latest = Boolean()
-
-    metadata = Object(MaasConfigDataflowMetadata)
-
-    name = Keyword()
-
-    records = Object(MaasConfigDataflowRecords)
-
-    version = Keyword()
-
-
-class MaasConfigMission(MAASDocument):
-    """
-    Mapping class for index: maas-config-mission
-
-    Generated from: resources/templates/maas-config-mission_template.json
-    """
-
-    class Index:
-        "inner class for DSL"
-
-        name = "maas-config-mission"
-
-    @classmethod
-    def _matches(cls, hit):
-        return hit["_index"].startswith("maas-config-mission")
-
-    display_name = Keyword()
-
-    key = Keyword()
-
-    short_name = Keyword()
-
-
-class MaasConfigSatellite(MAASDocument):
-    """
-    Mapping class for index: maas-config-satellite
-
-    Generated from: resources/templates/maas-config-satellite_template.json
-    """
-
-    class Index:
-        "inner class for DSL"
-
-        name = "maas-config-satellite"
-
-    @classmethod
-    def _matches(cls, hit):
-        return hit["_index"].startswith("maas-config-satellite")
-
-    display_name = Keyword()
-
-    key = Keyword()
-
-    mission = Keyword()
-
-    short_name = Keyword()
-
-
-class MaasConfigService(MAASDocument):
-    """
-    Mapping class for index: maas-config-service
-
-    Generated from: resources/templates/maas-config-service_template.json
-    """
-
-    class Index:
-        "inner class for DSL"
-
-        name = "maas-config-service"
-
-    @classmethod
-    def _matches(cls, hit):
-        return hit["_index"].startswith("maas-config-service")
-
-    display_name = Keyword()
-
-    key = Keyword()
-
-    short_name = Keyword()
+    interface_name = Keyword()
 
 
 class MetricsProduct(MAASRawDocument):
@@ -4154,6 +3891,283 @@ class MpipProduct(MAASRawDocument):
     validity_start_time = ZuluDate()
 
     validity_stop_time = ZuluDate()
+
+
+class OcsConfigCompleteness(MAASDocument):
+    """
+    Mapping class for index: ocs-config-completeness
+
+    Generated from: resources/templates/ocs-config-completeness_template.json
+    """
+
+    class Index:
+        "inner class for DSL"
+
+        name = "ocs-config-completeness"
+
+    @classmethod
+    def _matches(cls, hit):
+        return hit["_index"].startswith("ocs-config-completeness")
+
+    activated = Boolean()
+
+    end_date = ZuluDate()
+
+    key = Keyword()
+
+    mission = Keyword()
+
+    satellite_unit = Keyword()
+
+    service_id = Keyword()
+
+    service_type = Keyword()
+
+    start_date = ZuluDate()
+
+
+class OcsConfigCompletenessS3Records(InnerDoc):
+    """
+    Inner document class for parent class: OcsConfigCompletenessS3
+
+    Generated from property: records
+    """
+
+    product_type = Keyword()
+
+    sensing_in_minutes = Long()
+
+    timeliness = Keyword()
+
+
+class OcsConfigCompletenessS3(MAASDocument):
+    """
+    Mapping class for index: ocs-config-completeness-s3
+
+    Generated from: resources/templates/ocs-config-completeness-s3_template.json
+    """
+
+    class Index:
+        "inner class for DSL"
+
+        name = "ocs-config-completeness-s3"
+
+    @classmethod
+    def _matches(cls, hit):
+        return hit["_index"].startswith("ocs-config-completeness-s3")
+
+    key = Keyword()
+
+    latest = Boolean()
+
+    records = Object(OcsConfigCompletenessS3Records)
+
+
+class OcsConfigCompletenessS5Records(InnerDoc):
+    """
+    Inner document class for parent class: OcsConfigCompletenessS5
+
+    Generated from property: records
+    """
+
+    product_type = Keyword()
+
+    sensing_in_minutes = Long()
+
+    timeliness = Keyword()
+
+
+class OcsConfigCompletenessS5(MAASDocument):
+    """
+    Mapping class for index: ocs-config-completeness-s5
+
+    Generated from: resources/templates/ocs-config-completeness-s5_template.json
+    """
+
+    class Index:
+        "inner class for DSL"
+
+        name = "ocs-config-completeness-s5"
+
+    @classmethod
+    def _matches(cls, hit):
+        return hit["_index"].startswith("ocs-config-completeness-s5")
+
+    key = Keyword()
+
+    latest = Boolean()
+
+    records = Object(OcsConfigCompletenessS5Records)
+
+
+class OcsConfigDataflowMetadata(InnerDoc):
+    """
+    Inner document class for parent class: OcsConfigDataflow
+
+    Generated from property: metadata
+    """
+
+    createAt = ZuluDate()
+
+    updateAt = ZuluDate()
+
+
+class OcsConfigDataflowRecordsServicesConfig(InnerDoc):
+    """
+    Inner document class for parent class: OcsConfigDataflowRecords
+
+    Generated from property: services_config
+    """
+
+
+class OcsConfigDataflowRecordsAuxip(InnerDoc):
+    """
+    Inner document class for parent class: OcsConfigDataflowRecords
+
+    Generated from property: AUXIP
+    """
+
+    frequency = Long()
+
+    provider = Keyword()
+
+    timeliness = Long()
+
+
+class OcsConfigDataflowRecords(InnerDoc):
+    """
+    Inner document class for parent class: OcsConfigDataflow
+
+    Generated from property: records
+    """
+
+    product_type = Keyword()
+
+    product_level = Keyword()
+
+    description = Text()
+
+    note = Text()
+
+    payload = Keyword()
+
+    mode = Keyword()
+
+    services_config = Object(OcsConfigDataflowRecordsServicesConfig)
+
+    AUXIP = Object(OcsConfigDataflowRecordsAuxip)
+
+
+class OcsConfigDataflow(MAASDocument):
+    """
+    Mapping class for index: ocs-config-dataflow
+
+    Generated from: resources/templates/ocs-config-dataflow_template.json
+    """
+
+    class Index:
+        "inner class for DSL"
+
+        name = "ocs-config-dataflow"
+
+    @classmethod
+    def _matches(cls, hit):
+        return hit["_index"].startswith("ocs-config-dataflow")
+
+    key = Keyword()
+
+    latest = Boolean()
+
+    metadata = Object(OcsConfigDataflowMetadata)
+
+    name = Keyword()
+
+    records = Object(OcsConfigDataflowRecords)
+
+    version = Keyword()
+
+
+class OcsConfigMission(MAASDocument):
+    """
+    Mapping class for index: ocs-config-mission
+
+    Generated from: resources/templates/ocs-config-mission_template.json
+    """
+
+    class Index:
+        "inner class for DSL"
+
+        name = "ocs-config-mission"
+
+    @classmethod
+    def _matches(cls, hit):
+        return hit["_index"].startswith("ocs-config-mission")
+
+    display_name = Keyword()
+
+    key = Keyword()
+
+    short_name = Keyword()
+
+    valid_from = ZuluDate()
+
+    valid_to = ZuluDate()
+
+
+class OcsConfigSatellite(MAASDocument):
+    """
+    Mapping class for index: ocs-config-satellite
+
+    Generated from: resources/templates/ocs-config-satellite_template.json
+    """
+
+    class Index:
+        "inner class for DSL"
+
+        name = "ocs-config-satellite"
+
+    @classmethod
+    def _matches(cls, hit):
+        return hit["_index"].startswith("ocs-config-satellite")
+
+    display_name = Keyword()
+
+    key = Keyword()
+
+    mission = Keyword()
+
+    short_name = Keyword()
+
+    valid_from = ZuluDate()
+
+    valid_to = ZuluDate()
+
+
+class OcsConfigService(MAASDocument):
+    """
+    Mapping class for index: ocs-config-service
+
+    Generated from: resources/templates/ocs-config-service_template.json
+    """
+
+    class Index:
+        "inner class for DSL"
+
+        name = "ocs-config-service"
+
+    @classmethod
+    def _matches(cls, hit):
+        return hit["_index"].startswith("ocs-config-service")
+
+    display_name = Keyword()
+
+    key = Keyword()
+
+    short_name = Keyword()
+
+    valid_from = ZuluDate()
+
+    valid_to = ZuluDate()
 
 
 class PripProduct(MAASRawDocument):

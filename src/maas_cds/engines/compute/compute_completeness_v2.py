@@ -3,7 +3,7 @@
 from maas_cds.engines.compute.compute_completeness import ComputeCompletenessEngine
 from maas_cds.lib.config_manager import MaasConfigManager
 from maas_cds.lib.parsing_name import utils
-from maas_cds.model.configuration import MaasConfigCompleteness, MaasConfigDataflow
+from maas_cds.model.configuration import OcsConfigCompleteness, OcsConfigDataflow
 from maas_engine.engine.rawdata import DataEngine
 from maas_cds.model.cds_completeness import CdsCompleteness
 
@@ -40,8 +40,8 @@ class ComputeCompletenessEngineV2(ComputeCompletenessEngine):
 
         self.config_manager = MaasConfigManager(
             config_model_class=[
-                MaasConfigDataflow(),
-                MaasConfigCompleteness(),
+                OcsConfigDataflow(),
+                OcsConfigCompleteness(),
             ]
         )
 

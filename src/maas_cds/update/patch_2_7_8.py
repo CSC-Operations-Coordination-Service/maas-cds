@@ -49,7 +49,7 @@ class PatchV2_7_8(MaasMigrator):
             },
         ]
         for args in init_args:
-            maas_config_document = model.MaasConfigCompleteness(**args)
+            maas_config_document = model.OcsConfigCompleteness(**args)
 
             new_id = f"{maas_config_document.satellite_unit}-{maas_config_document.prip_name}"
 

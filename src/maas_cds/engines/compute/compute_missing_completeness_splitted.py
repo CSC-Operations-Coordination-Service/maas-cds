@@ -3,10 +3,10 @@
 import re
 import typing
 from maas_cds.lib.config_manager import MaasConfigManager
-from maas_cds.model.configuration import MaasConfigCompleteness, MaasConfigDataflow
+from maas_cds.model.configuration import OcsConfigCompleteness, OcsConfigDataflow
 from maas_cds.model.configuration.maas_config import (
-    MaasConfigCompletenessS5,
-    MaasConfigCompletenessS3,
+    OcsConfigCompletenessS5,
+    OcsConfigCompletenessS3,
 )
 from maas_engine.engine.rawdata import DataEngine
 from maas_cds.engines.reports.anomaly_impact import AnomalyImpactMixinEngine
@@ -27,10 +27,10 @@ class ComputeMissingCompletenessSplitted(AnomalyImpactMixinEngine, DataEngine):
 
         self.config_manager = MaasConfigManager(
             config_model_class=[
-                MaasConfigDataflow(),
-                MaasConfigCompleteness(),
-                MaasConfigCompletenessS5(),
-                MaasConfigCompletenessS3(),
+                OcsConfigDataflow(),
+                OcsConfigCompleteness(),
+                OcsConfigCompletenessS5(),
+                OcsConfigCompletenessS3(),
             ]
         )
 

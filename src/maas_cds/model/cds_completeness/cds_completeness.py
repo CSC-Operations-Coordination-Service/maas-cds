@@ -77,9 +77,7 @@ class CdsCompleteness(generated.CdsCompleteness, CdsDatatake):
         # Filter DATAFLOW_CACHE records to match mission, satellite_unit, and service_type
         filtered_records = [
             record
-            for record in MaasConfigManager().get_config("MaasConfigDataflow")[
-                "records"
-            ]
+            for record in MaasConfigManager().get_config("OcsConfigDataflow")["records"]
             if record.mission == self.mission
             and self.satellite_unit in record.satellites
             and self.service_type in record.services_config

@@ -2,7 +2,7 @@
 
 from maas_engine.engine.rawdata import DataEngine
 from maas_cds.lib.config_manager import MaasConfigManager
-from maas_cds.model.configuration import MaasConfigDataflow
+from maas_cds.model.configuration import OcsConfigDataflow
 from maas_cds.model.datatake import CdsDatatake
 
 from maas_cds.model.enumeration import CompletenessScope
@@ -31,7 +31,7 @@ class ComputeCompletenessEngine(DataEngine):
         # compute silently falls back to counting every pair on every interface.
         self.config_manager = MaasConfigManager(
             config_model_class=[
-                MaasConfigDataflow(),
+                OcsConfigDataflow(),
             ]
         )
 
