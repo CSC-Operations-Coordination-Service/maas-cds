@@ -8,6 +8,7 @@ import sys
 from opensearchpy.connection.connections import connections as es_connections
 
 from maas_engine.cli import args as maas_args
+from maas_engine.consumer.amqp_settings import AMQPSettings
 from maas_engine.engine.query import QueryEngine
 from maas_engine.engine.base import Engine
 
@@ -48,12 +49,17 @@ class Satruman:
             "[SETUP][Logger] - Setup on level %s", logging.getLevelName(log_level)
         )
 
-        self.logger.info("[SETUP][Engine] - Load config %s", self.args.es_url)
+        self.logger.info("[SETUP][Engine] - Load config %s", self.args.config.name)
         Engine.load_config_file(self.args.config)
 
         es_url = maas_args.get_es_credentials_url(self.args)
 
-        self.logger.info("[SETUP][opensearchpy] - Setup on %s", self.args.es_url)
+        # the urls embed the credentials, from the vault or the ES_* / AMQP_*
+        # settings: log them masked
+        self.logger.info(
+            "[SETUP][opensearchpy] - Setup on %s",
+            AMQPSettings.mask_amqp_password(es_url),
+        )
 
         self.es_conn = es_connections.create_connection(
             hosts=[es_url],
@@ -64,9 +70,13 @@ class Satruman:
             ssl_show_warn=not self.args.es_ignore_certs_verification,
         )
 
-        self.logger.info("[SETUP][MessageEmitter] - Setup on %s", self.args.amqp_url)
-
         amqp_url = maas_args.get_amqp_credentials_url(self.args)
+
+        self.logger.info(
+            "[SETUP][MessageEmitter] - Setup on %s",
+            AMQPSettings.mask_amqp_password(amqp_url),
+        )
+
         self.messenger = MessageEmitter(
             amqp_url, priority=self.args.amqp_priority, chunk_size=self.args.chunk_size
         )

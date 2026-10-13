@@ -1,5 +1,6 @@
 """el_grando_satruman reads its OpenSearch and AMQP connections from OpenBao / Vault"""
 
+import logging
 import os
 
 import pytest
@@ -107,3 +108,37 @@ def test_satruman_connects_with_the_vault_connections(vault_env, tmp_path):
     assert opensearch_hosts == [ES_URL]
     # the message emitter opens its broker connection on the first publish
     assert wizards[0].messenger.url == AMQP_URL
+
+
+def test_satruman_logs_where_it_connects_without_the_passwords(
+    vault_env, tmp_path, caplog
+):
+    engine_config = tmp_path / "engine-conf.json"
+    engine_config.write_text("{}", encoding="UTF-8")
+
+    # neither connect nor query
+    vault_env.setattr(
+        el_grando_satruman.es_connections, "create_connection", lambda **kwargs: None
+    )
+    vault_env.setattr(Satruman, "run", lambda self: None)
+    caplog.set_level(logging.INFO)
+
+    satruman_main(
+        [
+            "--config",
+            str(engine_config),
+            "--document-class",
+            "CdsProduct",
+            "--routing-key",
+            "compute.cds-product",
+            "-v",
+        ]
+    )
+
+    setup_log = "\n".join(
+        record.getMessage() for record in caplog.records if record.name == "Satruman"
+    )
+    assert str(engine_config) in setup_log
+    assert "https://maas:**@opensearch.example:9200" in setup_log
+    assert "amqp://maas:**@rabbit.example:5672//" in setup_log
+    assert "s3cr3t" not in caplog.text
