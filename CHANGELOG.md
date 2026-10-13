@@ -85,9 +85,13 @@
 
 ### Requirements
 
-- maas-cds now requires `maas-engine>=3.1.0,<4` (was `>=3.0.1`) and
-  `maas-collector>=3.11.0,<4` (was unpinned), their OpenBao / Vault releases. Both
-  bring `maas-model[vault]>=3.1.0,<4`, which installs `hvac`.
+- maas-cds now requires maas-engine 3.1.0 or a later 3.x (was `>=3.0.1`) and
+  maas-collector 3.11.0 or a later 3.x (was unpinned), their OpenBao / Vault releases.
+  Both bring maas-model 3.1.0 or later with its `vault` extra, which installs `hvac`.
+- The requirements read `maas-engine>=3.1.0.dev0,<4` and
+  `maas-collector>=3.11.0.dev0,<4`. The `.dev0` lets pip also install their
+  development builds made after those releases, like 3.1.0.post1.devN, from the Nexus
+  dev index, which holds no releases.
 
 ### Upgrade
 
