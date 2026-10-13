@@ -145,9 +145,13 @@ def satruman_main(argv):
         argv (list): argument provide to run satruman
     """
 
-    # AMQP / ES access
+    # AMQP / ES access, read from the vault when ES_VAULT_PATH / AMQP_VAULT_PATH are set
     parser = argparse.ArgumentParser(
-        parents=[maas_args.es_parser(), maas_args.amqp_parser()]
+        parents=[
+            maas_args.es_parser(),
+            maas_args.amqp_parser(),
+            maas_args.vault_parser(),
+        ]
     )
 
     # AMQP customization
