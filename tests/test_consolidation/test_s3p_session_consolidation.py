@@ -73,10 +73,49 @@ GLOBAL_COMPLETENESS_TYPES = {
     "global_status": "keyword",
 }
 
+# The only field the consolidation writes that the template does not map: a known
+# engine bug. When a CADU chunk is already in cadu_files,
+# S3pSessionConsolidatorEngine.consolidate_from_S3pMetricsCirculationAgent sets
+# its IN / OUT time on the session instead of on the cadu_files entry. Fix the
+# engine, not the template, then drop it from here.
+UNMAPPED_FIELDS = {"cadu_delivery_out"}
+
 
 def compact(timestamp):
     """20260402T050644, the way a S3 product name holds a date"""
     return timestamp[:19].replace("-", "").replace(":", "")
+
+
+def template_properties():
+    """The properties the s3p-session template maps"""
+    return json.loads(TEMPLATE.read_text(encoding="utf-8"))["mappings"]["properties"]
+
+
+def mapped_paths(properties, path=()):
+    """Every field path a mapping holds, the object ones included"""
+    paths = set()
+
+    for name, mapping in properties.items():
+        paths.add(".".join(path + (name,)))
+        paths |= mapped_paths(mapping.get("properties", {}), path + (name,))
+
+    return paths
+
+
+def leaf_paths(value, path=()):
+    """Every leaf field path of a document, the items of a list flattened
+
+    A null leaf counts: the same field holds a value in another session.
+    """
+    if isinstance(value, dict):
+        return set().union(
+            *(leaf_paths(item, path + (name,)) for name, item in value.items())
+        )
+
+    if isinstance(value, list):
+        return set().union(*(leaf_paths(item, path) for item in value))
+
+    return {".".join(path)}
 
 
 def granule_name(product_type, validitystart, validitystop):
@@ -620,9 +659,7 @@ def test_global_completeness_is_mapped(session):
     by OpenSearch from the first value written, and stays so until a reindex
     (global_status as text, global_value as a float).
     """
-    properties = json.loads(TEMPLATE.read_text(encoding="utf-8"))["mappings"][
-        "properties"
-    ]
+    properties = template_properties()
 
     source = session.to_bulk_action()["_source"]
 
@@ -641,3 +678,36 @@ def test_global_completeness_is_mapped(session):
 
     assert isinstance(source["global_percentage"], float)
     assert isinstance(source["global_status"], str)
+
+
+def missing_session():
+    """The session standing for the downlink orbit before this one
+
+    Created the way the consolidation does when no session was seen for an
+    orbit: an empty session, flagged as missing, placed on the time axis.
+    """
+    session = S3pSession.from_missing_orbit("S3A", "052723")
+
+    session.acquisition_start_time = zulu("2026-04-02T05:06:24.000Z")
+    session.acquisition_stop_time = zulu("2026-04-02T05:16:24.000Z")
+
+    session.compute_kpi()
+
+    return session
+
+
+@pytest.mark.parametrize(
+    "build, unmapped",
+    [(build_session, UNMAPPED_FIELDS), (missing_session, set())],
+    ids=["session", "missing_session"],
+)
+def test_every_indexed_field_is_mapped(build, unmapped):
+    """Every field the consolidation writes is one the template maps
+
+    Down to the fields of the granules and of the completeness entries: a new
+    field left out of the template is typed by OpenSearch from the first session
+    written, on the single s3p-session index.
+    """
+    source = build().to_bulk_action()["_source"]
+
+    assert leaf_paths(source) - mapped_paths(template_properties()) == unmapped
