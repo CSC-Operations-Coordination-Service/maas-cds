@@ -57,6 +57,29 @@ class DeletionReconciliationMixin:
 
         return list(search.params(size=2000, ignore=404).scan())
 
+    def load_listings(
+        self, keys: List[str], interface_type: str, names: List[str]
+    ) -> List:
+        """Get the deletions of some tickets that list some names
+
+        Args:
+            keys (List[str]): ticket keys
+            interface_type (str): service type (currently DD or LTA)
+            names (List[str]): effective product names
+
+        Returns:
+            List[CdsInterfaceProductDeletion]: deletions
+        """
+        search = (
+            CdsInterfaceProductDeletion.search()
+            .filter("terms", jira_issue=keys)
+            .filter("term", interface_type=interface_type)
+            .filter("terms", effective_product_name=names)
+            .source(["attachment_id", "effective_product_name", "jira_issue"])
+        )
+
+        return list(search.params(size=2000, ignore=404).scan())
+
     def split_attachments(
         self, deletions: List, issue: CdsDeletionIssue
     ) -> Tuple[set, set]:

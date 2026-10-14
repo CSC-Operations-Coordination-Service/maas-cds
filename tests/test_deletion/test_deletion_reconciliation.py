@@ -1,6 +1,7 @@
 """Tests of the deletion consolidation and of its reconciliation with attachments"""
 
 import copy
+import random
 from unittest.mock import patch
 
 import pytest
@@ -8,7 +9,12 @@ from maas_engine.exceptions import CannotProcessMessageException, HandleMessageE
 from maas_model import MAASMessage
 
 from maas_cds.engines.reports.product_deletion import DeletionConsolidatorEngine
-from maas_cds.model import CdsDeletionIssue, CdsInterfaceProductDeletion, CdsPublication
+from maas_cds.model import (
+    CdsDeletionIssue,
+    CdsInterfaceProductDeletion,
+    CdsProduct,
+    CdsPublication,
+)
 
 from data.deletion_data_test import (
     make_deletion,
@@ -19,11 +25,31 @@ from data.deletion_data_test import (
 )
 
 
+def listed(deletion, keys, interface_type, names):
+    """Whether load_listings would return a deletion"""
+    return (
+        deletion.jira_issue in keys
+        and deletion.interface_type == interface_type
+        and deletion.effective_product_name in set(names)
+    )
+
+
 def build_engine(deletions, deletables):
-    """An engine whose two database accesses are replaced by fixtures"""
+    """An engine whose database accesses are replaced by fixtures"""
     engine = DeletionConsolidatorEngine()
 
-    engine.load_deletions = lambda issue: deletions
+    engine.load_deletions = lambda issue: [
+        deletion
+        for deletion in deletions
+        if deletion.jira_issue == issue.key
+        and deletion.interface_type == issue.interface_type
+    ]
+
+    engine.load_listings = lambda keys, interface_type, names: [
+        deletion
+        for deletion in deletions
+        if listed(deletion, keys, interface_type, names)
+    ]
 
     engine.deletable_iterator = lambda names, service_type, service_ids: [
         deletable
@@ -85,12 +111,19 @@ class FakeIndex:
         self.conflicts = 0
 
     def plug(self, engine):
-        """Replace the two database lookups of an engine"""
+        """Replace the database lookups of an engine"""
         engine.load_deletions = lambda issue: [
             copy.deepcopy(document)
             for document in self.documents.values()
             if isinstance(document, CdsInterfaceProductDeletion)
             and document.jira_issue == issue.key
+        ]
+
+        engine.load_listings = lambda keys, interface_type, names: [
+            copy.deepcopy(document)
+            for document in self.documents.values()
+            if isinstance(document, CdsInterfaceProductDeletion)
+            and listed(document, keys, interface_type, names)
         ]
 
         def deletable_iterator(names, service_type, service_ids):
@@ -121,7 +154,8 @@ class FakeIndex:
         details = {"_index": key[0], "_id": key[1]}
 
         if action["_op_type"] == "delete":
-            del self.documents[key]
+            if self.documents.pop(key, None) is None:
+                return False, {"delete": details | {"status": 404}}
 
             return True, {"delete": details | {"status": 200, "result": "deleted"}}
 
@@ -153,6 +187,59 @@ class FakeIndex:
             "maas_engine.engine.data.db_connections"
         ), patch.object(engine, "get_input_model", return_value=CdsDeletionIssue):
             return list(engine.run("update.cds-deletion-issue", payload))
+
+
+class EagerIndex(FakeIndex):
+    """Stand-in for parallel_bulk when it keeps up with the lookups: each action
+    is applied before the next one is planned"""
+
+    def bulk(self, _client, actions, **_kwargs):
+        for action in actions:
+            yield self.apply(action)
+
+
+def run_until_acked(index, issues, max_runs=8):
+    """Process a message again as long as the consumer requeues it
+
+    Returns:
+        int: runs needed to acknowledge it, None when it never is
+    """
+    for runs in range(1, max_runs + 1):
+        try:
+            index.run(issues)
+        except HandleMessageException:
+            continue
+
+        return runs
+
+    return None
+
+
+def ticket_row(name, key, service="Werum", attachment_id=None, created=None):
+    """A deletion of ticket `key`, whose identifier is distinct from the other
+    tickets ones"""
+    deletion = make_deletion(
+        name,
+        attachment_id=attachment_id,
+        created=created,
+        jira_issue=key,
+        report_name=f"{key}_LTA_{service}_DelList.csv",
+    )
+
+    deletion.meta.id = f"{name}-{key}-{attachment_id}"
+
+    return deletion
+
+
+def deletion_issue_of(document, service_id="Werum"):
+    """The ticket a product or a publication is marked by on a service"""
+    if isinstance(document, CdsPublication):
+        return getattr(document, "deletion_issue", None)
+
+    return getattr(document, f"LTA_{service_id}_deletion_issue", None)
+
+
+DELETABLES = {"product": make_product, "publication": make_publication}
 
 
 def assert_one_action_per_document(actions):
@@ -275,7 +362,9 @@ def test_emptied_attachment_rolls_everything_back():
     product_a = make_product("PRODUCT_A")
     product_a.mark_as_deleted(issue, ["Werum"])
 
-    actions = run(build_engine(deletions, [product_a, make_product("PRODUCT_B")]), issue)
+    actions = run(
+        build_engine(deletions, [product_a, make_product("PRODUCT_B")]), issue
+    )
 
     rollback = next(action for action in actions if action["_id"] == "PRODUCT_A")
 
@@ -294,7 +383,9 @@ def test_detached_attachment_promotes_the_previous_one():
     product_b = make_product("PRODUCT_B")
     product_b.mark_as_deleted(issue, ["Werum"])
 
-    actions = run(build_engine(deletions, [make_product("PRODUCT_A"), product_b]), issue)
+    actions = run(
+        build_engine(deletions, [make_product("PRODUCT_A"), product_b]), issue
+    )
 
     by_id = {action["_id"]: action for action in actions}
 
@@ -638,14 +729,18 @@ def test_max_documents_rejects_the_message_and_keeps_the_stale_rows():
     assert not [action for action in actions if action["_op_type"] == "delete"]
 
 
-def test_document_of_two_tickets_is_written_once_and_completed_by_the_retry():
+@pytest.mark.parametrize("index_class", [FakeIndex, EagerIndex])
+def test_document_of_two_tickets_is_written_once_and_completed_by_the_retry(
+    index_class,
+):
     """Two tickets of one message touch the same product.
 
     Only the chunk being planned is in memory, so the second ticket fetches the
-    product again, before the bulk applies the first write: a second write would
-    conflict, and as bulk chunks run in parallel, either write could be the one
-    lost. The second ticket leaves the product to the retry of the message, with
-    the rows of its superseded attachment, which still list the rollback.
+    product again, most likely before the bulk applies the first write: a second
+    write would conflict, and as bulk chunks run in parallel, either write could
+    be the one lost. The second ticket leaves the product to the retry of the
+    message, with the rows of its superseded attachment, which still list the
+    rollback.
     """
     exprivia = make_issue(key="OMCS-1", deletion_interfaces=["Exprivia"])
     werum = make_issue(attachment_ids=["11"])
@@ -654,7 +749,7 @@ def test_document_of_two_tickets_is_written_once_and_completed_by_the_retry():
     product_a = make_product("PRODUCT_A")
     product_a.mark_as_deleted(werum, ["Werum"])
 
-    index = FakeIndex(
+    index = index_class(
         [
             product_a,
             make_product("PRODUCT_B"),
@@ -697,3 +792,335 @@ def test_document_of_two_tickets_is_written_once_and_completed_by_the_retry():
     assert product.nb_lta_deleted == 1
 
     assert stale_row_key not in index.documents
+
+
+@pytest.mark.parametrize("index_class", [FakeIndex, EagerIndex])
+@pytest.mark.parametrize("kind", ["product", "publication"])
+@pytest.mark.parametrize(
+    "count, owner",
+    [(2, None), (2, 0), (2, 1), (3, None), (3, 0), (3, 1), (3, 2)],
+)
+def test_tickets_listing_a_name_leave_its_mark_to_the_last_one(
+    index_class, kind, count, owner
+):
+    """The mark of a service is single-valued: as when every ticket was applied in
+    turn to the document, the last ticket of the message that lists a name owns
+    it. Were the earlier tickets to mark it too, the document, written once per
+    run, would be left to the retry, where the first ticket overwrites the mark
+    again: from three tickets on, the message would be requeued forever."""
+    issues = [make_issue(key=f"OMCS-{number}") for number in range(1, count + 1)]
+
+    document = DELETABLES[kind]("PRODUCT_A")
+
+    if owner is not None:
+        document.mark_as_deleted(issues[owner], ["Werum"])
+
+    index = index_class(
+        [document] + [ticket_row("PRODUCT_A", issue.key) for issue in issues]
+    )
+
+    # written once, by the last ticket, whatever the timing of the bulk
+    assert run_until_acked(index, issues) == 1
+
+    assert index.conflicts == 0
+
+    marked = index.documents[(document.meta.index, document.meta.id)]
+
+    assert deletion_issue_of(marked) == issues[-1].key
+
+    if kind == "product":
+        assert marked.nb_lta_deleted == 1
+
+
+@pytest.mark.parametrize("index_class", [FakeIndex, EagerIndex])
+@pytest.mark.parametrize("kind", ["product", "publication"])
+def test_later_ticket_rolling_a_name_back_leaves_it_to_an_earlier_one(
+    index_class, kind
+):
+    """OMCS-2 marked A, then superseded its list with one that drops A, while
+    OMCS-1, before it in the message, still lists A. A ticket that only rolls a
+    name back does not own it: A ends marked by OMCS-1, as when both tickets are
+    applied in turn, and is not rolled back for good with the stale row gone."""
+    earlier = make_issue(key="OMCS-1")
+    later = make_issue(key="OMCS-2", attachment_ids=["21"])
+
+    document = DELETABLES[kind]("PRODUCT_A")
+    document.mark_as_deleted(later, ["Werum"])
+
+    stale_row = ticket_row("PRODUCT_A", "OMCS-2", attachment_id="20", created=zulu(1))
+
+    index = index_class(
+        [
+            document,
+            make_product("PRODUCT_B"),
+            ticket_row("PRODUCT_A", "OMCS-1"),
+            stale_row,
+            ticket_row("PRODUCT_B", "OMCS-2", attachment_id="21", created=zulu(2)),
+        ]
+    )
+
+    runs = run_until_acked(index, [earlier, later])
+
+    # the rollback may meet the mark of OMCS-1 not applied yet: left to the retry
+    assert runs in (1, 2)
+
+    assert index.conflicts == 0
+
+    marked = index.documents[(document.meta.index, document.meta.id)]
+
+    assert deletion_issue_of(marked) == "OMCS-1"
+
+    if kind == "product":
+        assert marked.LTA_Werum_is_deleted is True
+        assert marked.nb_lta_deleted == 1
+
+    assert (stale_row.meta.index, stale_row.meta.id) not in index.documents
+
+
+def test_ticket_listed_twice_in_a_message_is_applied_once():
+    """Its first place would leave its marks to the second one, which reads the
+    documents before the first write lands and finds nothing to change"""
+    issue = make_issue(attachment_ids=["11"])
+
+    product_a = make_product("PRODUCT_A")
+    product_a.mark_as_deleted(issue, ["Werum"])
+
+    stale_row = make_deletion("PRODUCT_B", attachment_id="10", created=zulu(1))
+
+    index = FakeIndex(
+        [
+            product_a,
+            stale_row,
+            make_deletion("PRODUCT_A", attachment_id="11", created=zulu(2)),
+        ]
+    )
+
+    assert run_until_acked(index, [issue, issue]) == 1
+
+    assert index.documents[("cds-product-2024-05", "PRODUCT_A")].LTA_Werum_is_deleted
+
+    # and its stale rows are deleted once
+    assert (stale_row.meta.index, stale_row.meta.id) not in index.documents
+
+
+@pytest.mark.parametrize("index_class", [FakeIndex, EagerIndex])
+def test_tickets_on_several_services_of_a_product_complete_it_in_turn(index_class):
+    """Only the services a later ticket marks are left to it: the Werum mark of
+    OMCS-2 and the Exprivia mark of OMCS-3 change the same product, so the second
+    one waits for the retry"""
+    issues = [
+        make_issue(key="OMCS-1"),
+        make_issue(key="OMCS-2"),
+        make_issue(key="OMCS-3", deletion_interfaces=["Exprivia"]),
+    ]
+
+    index = index_class(
+        [
+            make_product("PRODUCT_A"),
+            ticket_row("PRODUCT_A", "OMCS-1"),
+            ticket_row("PRODUCT_A", "OMCS-2"),
+            ticket_row("PRODUCT_A", "OMCS-3", service="Exprivia"),
+        ]
+    )
+
+    assert run_until_acked(index, issues) == 2
+
+    assert index.conflicts == 0
+
+    product = index.documents[("cds-product-2024-05", "PRODUCT_A")]
+
+    assert product.LTA_Werum_deletion_issue == "OMCS-2"
+    assert product.LTA_Exprivia_deletion_issue == "OMCS-3"
+    assert product.nb_lta_deleted == 2
+
+
+def test_later_tickets_are_read_for_the_names_of_the_chunk_only():
+    """The rows of the later tickets are read chunk by chunk, for the names the
+    ticket marks, so that a message of many tickets holds no more than a chunk of
+    them. A message of one ticket, the usual case, reads nothing more."""
+    first = make_issue(key="OMCS-1")
+    second = make_issue(key="OMCS-2")
+    other_type = make_issue(key="OMCS-3", interface_type="DD")
+
+    names = ["PRODUCT_A", "PRODUCT_B", "PRODUCT_C"]
+
+    deletions = [ticket_row(name, "OMCS-1") for name in names] + [
+        ticket_row("PRODUCT_B", "OMCS-2"),
+        make_deletion("PRODUCT_C", jira_issue="OMCS-3", interface_type="DD"),
+    ]
+
+    listings = []
+
+    def build():
+        engine = build_engine(deletions, [make_product(name) for name in names])
+        engine.terms_chunk_size = 2
+
+        load_listings = engine.load_listings
+
+        def spy(keys, interface_type, chunk):
+            listings.append((list(keys), interface_type, list(chunk)))
+            return load_listings(keys, interface_type, chunk)
+
+        engine.load_listings = spy
+
+        return engine
+
+    run(build(), first)
+
+    assert not listings
+
+    engine = build()
+    engine.payload = MAASMessage(document_class="CdsDeletionIssue")
+    engine.input_documents = [first, second, other_type]
+
+    actions = list(engine.action_iterator())
+
+    # a ticket of the other interface type sets other fields
+    assert listings == [
+        (["OMCS-2"], "LTA", ["PRODUCT_A", "PRODUCT_B"]),
+        (["OMCS-2"], "LTA", ["PRODUCT_C"]),
+    ]
+
+    by_id = {action["_id"]: action["_source"] for action in actions}
+
+    assert by_id["PRODUCT_A"]["LTA_Werum_deletion_issue"] == "OMCS-1"
+    assert by_id["PRODUCT_B"]["LTA_Werum_deletion_issue"] == "OMCS-2"
+    assert by_id["PRODUCT_C"]["LTA_Werum_deletion_issue"] == "OMCS-1"
+
+
+SERVICES = ["Werum", "Exprivia"]
+
+
+def random_message(seed):
+    """Tickets on one or both services of PRODUCT_A, that list it, roll it back or
+    leave it alone, and the product and publications as marked by any of them"""
+    rng = random.Random(seed)
+
+    issues = []
+
+    rows = []
+
+    behaviours = {}
+
+    for number in range(1, rng.randint(2, 4) + 1):
+        key = f"OMCS-{number}"
+
+        services = rng.sample(SERVICES, rng.randint(1, 2))
+
+        behaviour = behaviours[key] = rng.choice(["marks", "rolls back", "ignores"])
+
+        if behaviour == "rolls back":
+            issues.append(
+                make_issue(key=key, deletion_interfaces=services, attachment_ids=["1"])
+            )
+
+            rows.append(ticket_row("PRODUCT_A", key, services[0], "0", created=zulu(1)))
+            rows.append(ticket_row("PRODUCT_B", key, services[0], "1", created=zulu(2)))
+        else:
+            issues.append(make_issue(key=key, deletion_interfaces=services))
+
+            name = "PRODUCT_A" if behaviour == "marks" else "PRODUCT_B"
+
+            rows.append(ticket_row(name, key, services[0]))
+
+    deletables = [make_product("PRODUCT_A")] + [
+        make_publication("PRODUCT_A", service_id=service) for service in SERVICES
+    ]
+
+    for service in SERVICES:
+        owner = rng.choice(
+            [None] + [issue for issue in issues if service in issue.deletion_interfaces]
+        )
+
+        if owner is not None:
+            deletables[0].mark_as_deleted(owner, [service])
+            deletables[1 + SERVICES.index(service)].mark_as_deleted(owner)
+
+    return issues, behaviours, deletables, rows
+
+
+def applied_in_turn(issues, behaviours, deletables):
+    """The tickets applied in turn to one instance of each document"""
+    deletables = copy.deepcopy(deletables)
+
+    for issue in issues:
+        found = [
+            deletable
+            for deletable in deletables
+            if isinstance(deletable, CdsProduct)
+            or deletable.service_id in issue.deletion_interfaces
+        ]
+
+        for deletable in found:
+            if behaviours[issue.key] == "rolls back":
+                deletable.unmark_as_deleted(issue)
+
+            if behaviours[issue.key] == "marks":
+                deletable.mark_as_deleted(issue, issue.deletion_interfaces)
+
+    return deletables
+
+
+def deletion_state(deletables):
+    """The deletion fields of PRODUCT_A and of its publications"""
+    product, *publications = deletables
+
+    return {
+        "nb_lta_deleted": getattr(product, "nb_lta_deleted", 0) or 0,
+        "product": {
+            service: deletion_issue_of(product, service) for service in SERVICES
+        },
+        "publications": [
+            deletion_issue_of(publication) for publication in publications
+        ],
+    }
+
+
+def message_problem(index_class, seed):
+    """Process the random message of `seed` until it is acknowledged
+
+    Returns:
+        str: what went wrong, None when nothing did
+    """
+    issues, behaviours, deletables, rows = random_message(seed)
+
+    expected = deletion_state(applied_in_turn(issues, behaviours, deletables))
+
+    index = index_class(copy.deepcopy(deletables) + rows)
+
+    runs = run_until_acked(index, issues)
+
+    if runs is None or runs > len(issues):
+        return f"acknowledged after {runs} runs for {len(issues)} tickets"
+
+    if index.conflicts:
+        return f"{index.conflicts} conflicts"
+
+    if [key for key in index.documents if key[1].endswith("-0")]:
+        return "stale rows left"
+
+    reached = deletion_state(
+        [
+            index.documents[(deletable.meta.index, deletable.meta.id)]
+            for deletable in deletables
+        ]
+    )
+
+    if reached != expected:
+        return f"{reached} instead of {expected}"
+
+    return None
+
+
+@pytest.mark.parametrize("index_class", [FakeIndex, EagerIndex])
+def test_message_ends_as_its_tickets_applied_in_turn(index_class):
+    """Whatever the tickets of a message do to a name, and the timing of the bulk,
+    the message is acknowledged within a run per ticket, with no conflict and no
+    stale row left, in the state its tickets applied in turn would give"""
+    problems = {
+        seed: problem
+        for seed in range(200)
+        if (problem := message_problem(index_class, seed))
+    }
+
+    assert not problems

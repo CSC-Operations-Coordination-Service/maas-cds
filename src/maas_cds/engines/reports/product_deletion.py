@@ -1,6 +1,6 @@
 """Deletion consolidation"""
 
-from typing import Dict, Generator, List, Optional, Set
+from typing import Dict, Generator, List, Optional, Sequence, Set, Tuple
 
 from maas_engine.engine.rawdata import DataEngine
 from maas_engine.exceptions import (
@@ -30,6 +30,9 @@ class DeletionConsolidatorEngine(
     The names of a ticket are handled in chunks of ``terms_chunk_size``: the
     documents of a chunk are looked up, changed, handed to the bulk, then
     released, so the memory of a run is bounded by the chunk, not by the ticket.
+
+    When several tickets of a message list a name, the last one marks it, as if
+    every ticket was applied in turn to the same document, see later_marks().
 
     Inherits from :class:`MissionMixinEngine` so that the products and
     publications touched are reported on mission-dedicated routing keys
@@ -75,6 +78,13 @@ class DeletionConsolidatorEngine(
         # documents left to the retry of the message, see flush()
         self._deferred = 0
 
+        # names of the payload per ticket, see payload_scopes()
+        self._scopes = None
+
+        # ticket key -> (current, stale) attachment identifiers, for the later
+        # tickets of the message, see later_marks()
+        self._attachments = {}
+
     # pylint: enable=R0913
 
     def run(self, routing_key, payload):
@@ -101,16 +111,15 @@ class DeletionConsolidatorEngine(
 
         self._deferred = 0
 
+        self._attachments = {}
+
         issues = self.resolve_issues()
 
-        scopes = self.payload_scopes()
+        self._scopes = self.payload_scopes()
 
-        for position, issue in enumerate(issues, start=1):
+        for position, issue in enumerate(issues):
             yield from self.reconcile_issue(
-                issue,
-                scope=None if scopes is None else scopes.get(issue.key, set()),
-                # a document written for the last ticket is not met again
-                remember=position < len(issues),
+                issue, scope=self.issue_scope(issue), later=issues[position + 1 :]
             )
 
     def resolve_issues(self) -> List[CdsDeletionIssue]:
@@ -126,7 +135,18 @@ class DeletionConsolidatorEngine(
         document_class = self.payload.document_class
 
         if document_class == "CdsDeletionIssue":
-            return self.input_documents
+            # a ticket listed twice is applied once, at its last place: the first
+            # one would leave its marks to the second, see later_marks()
+            last = {
+                issue.key: position
+                for position, issue in enumerate(self.input_documents)
+            }
+
+            return [
+                issue
+                for position, issue in enumerate(self.input_documents)
+                if last[issue.key] == position
+            ]
 
         if document_class == "CdsInterfaceProductDeletion":
             keys = sorted(
@@ -170,15 +190,60 @@ class DeletionConsolidatorEngine(
 
         return scopes
 
+    def issue_scope(self, issue: CdsDeletionIssue) -> Optional[Set[str]]:
+        """Get the names of the payload for a ticket
+
+        Args:
+            issue (CdsDeletionIssue): the deletion ticket
+
+        Returns:
+            set: effective product names, None for all
+        """
+        return None if self._scopes is None else self._scopes.get(issue.key, set())
+
+    def marked_names(
+        self,
+        deletions: List,
+        current_ids: set,
+        stale_ids: set,
+        scope: Optional[Set[str]],
+    ) -> Set[str]:
+        """Get the names a ticket marks
+
+        Args:
+            deletions (List[CdsInterfaceProductDeletion]): deletions of the ticket
+            current_ids (set): current attachment identifiers
+            stale_ids (set): stale attachment identifiers
+            scope (set): names of the payload for this ticket, None for all
+
+        Returns:
+            set: effective product names
+        """
+        # deletions with no attachment identity predate the feature: they are
+        # grandfathered in with the current set
+        names = self.deletion_names(deletions, current_ids, keep_legacy=True)
+
+        if scope is not None and not stale_ids:
+            # nothing to roll back: a message of deletions only marks its own
+            # names, the other rows of the ticket come with their own message.
+            # A stale attachment needs the whole ticket, once: its rows are
+            # deleted afterwards
+            names &= scope
+
+        return names
+
     def reconcile_issue(
-        self, issue: CdsDeletionIssue, scope: Optional[Set[str]], remember: bool
+        self,
+        issue: CdsDeletionIssue,
+        scope: Optional[Set[str]],
+        later: Sequence[CdsDeletionIssue] = (),
     ) -> Generator:
         """Decide the fate of every document impacted by a ticket, chunk by chunk
 
         Args:
             issue (CdsDeletionIssue): the deletion ticket
             scope (set): names of the payload for this ticket, None for all
-            remember (bool): record the documents written, for the next tickets
+            later (list): tickets after this one in the message
 
         Yields:
             dict: bulk actions, documents first, then stale deletions
@@ -191,21 +256,12 @@ class DeletionConsolidatorEngine(
 
         current_ids, stale_ids = self.split_attachments(deletions, issue)
 
-        # deletions with no attachment identity predate the feature: they are
-        # grandfathered in with the current set
-        current_names = self.deletion_names(deletions, current_ids, keep_legacy=True)
-
-        stale_names = self.deletion_names(deletions, stale_ids, keep_legacy=False)
+        current_names = self.marked_names(deletions, current_ids, stale_ids, scope)
 
         # only the products dropped from the ticket need a rollback
-        stale_names -= current_names
-
-        if scope is not None and not stale_ids:
-            # nothing to roll back: a message of deletions only marks its own
-            # names, the other rows of the ticket come with their own message.
-            # A stale attachment needs the whole ticket, once: its rows are
-            # deleted afterwards
-            current_names &= scope
+        stale_names = (
+            self.deletion_names(deletions, stale_ids, keep_legacy=False) - current_names
+        )
 
         if not stale_ids:
             self.logger.debug(
@@ -234,6 +290,9 @@ class DeletionConsolidatorEngine(
                 issue.key,
             )
 
+        # a document written for the last ticket is not met again
+        remember = bool(later)
+
         deferred = self._deferred
 
         written = 0
@@ -241,7 +300,13 @@ class DeletionConsolidatorEngine(
         for chunk in chunked(
             sorted(stale_names | current_names), self.terms_chunk_size
         ):
-            self.plan_chunk(issue, chunk, current_names, rollback=bool(stale_names))
+            self.plan_chunk(
+                issue,
+                chunk,
+                current_names,
+                rollback=bool(stale_names),
+                later=later,
+            )
 
             for action in self.flush(issue, remember):
                 written += 1
@@ -272,12 +337,14 @@ class DeletionConsolidatorEngine(
             dropped,
         )
 
+    # pylint: disable=R0913
     def plan_chunk(
         self,
         issue: CdsDeletionIssue,
         names: List[str],
         current_names: Set[str],
         rollback: bool,
+        later: Sequence[CdsDeletionIssue] = (),
     ):
         """Look up the documents of a chunk of names and change them in memory
 
@@ -286,8 +353,15 @@ class DeletionConsolidatorEngine(
             names (List[str]): names of the chunk
             current_names (set): names the current attachments list
             rollback (bool): the ticket has products to roll back
+            later (list): tickets after this one in the message
         """
         self._decisions = {}
+
+        taken = self.later_marks(
+            later,
+            [name for name in names if name in current_names],
+            issue.interface_type,
+        )
 
         for deletable in self.deletable_iterator(
             names,
@@ -301,8 +375,104 @@ class DeletionConsolidatorEngine(
                 # current attachment ends up in the state the current one dictates
                 document.unmark_as_deleted(issue)
 
-            if self.matched_name(document, issue.interface_type) in current_names:
-                document.mark_as_deleted(issue, issue.deletion_interfaces)
+            name = self.matched_name(document, issue.interface_type)
+
+            if name not in current_names:
+                continue
+
+            # a publication is scoped to the single service it was looked up for
+            services = (
+                [document.service_id]
+                if isinstance(document, CdsPublication)
+                else issue.deletion_interfaces
+            )
+
+            # the services a later ticket of the message marks are left to it
+            services = [
+                service_id
+                for service_id in services
+                if service_id not in taken.get(name, ())
+            ]
+
+            if services:
+                document.mark_as_deleted(issue, services)
+
+    # pylint: enable=R0913
+
+    def later_marks(
+        self,
+        later: Sequence[CdsDeletionIssue],
+        names: List[str],
+        interface_type: str,
+    ) -> Dict[str, Set[str]]:
+        """Get the services on which a later ticket of the message marks a name
+
+        The marks of a service are single-valued, on a product as on a
+        publication: the last ticket of the message that lists a name marks it,
+        as when every ticket was applied in turn to the same document. An earlier
+        ticket marking it too would be overwritten by the later one, and as a
+        document written twice is left to the retry, see flush(), where the
+        earlier ticket would overwrite it back, the message would be requeued
+        forever from three tickets on.
+
+        A later ticket that only rolls the name back does not count: an earlier
+        ticket that still lists the name marks it.
+
+        Only the rows of the later tickets that list the names are read, so that a
+        message of many tickets holds no more than a chunk of them.
+
+        Args:
+            later (list): tickets after the current one in the message
+            names (List[str]): names the current ticket marks
+            interface_type (str): service type of the current ticket
+
+        Returns:
+            dict: name -> services marked by a later ticket
+        """
+        # a ticket of the other interface type sets other fields
+        tickets = {
+            issue.key: issue
+            for issue in later
+            if issue.interface_type == interface_type
+        }
+
+        if not tickets or not names:
+            return {}
+
+        listings = {}
+
+        for deletion in self.load_listings(sorted(tickets), interface_type, names):
+            listings.setdefault(deletion.jira_issue, []).append(deletion)
+
+        taken = {}
+
+        for key, deletions in listings.items():
+            issue = tickets[key]
+
+            current_ids, stale_ids = self.ticket_attachments(issue)
+
+            for name in self.marked_names(
+                deletions, current_ids, stale_ids, self.issue_scope(issue)
+            ):
+                taken.setdefault(name, set()).update(issue.deletion_interfaces)
+
+        return taken
+
+    def ticket_attachments(self, issue: CdsDeletionIssue) -> Tuple[set, set]:
+        """Split the attachments of a later ticket of the message, once per run
+
+        Args:
+            issue (CdsDeletionIssue): the deletion ticket
+
+        Returns:
+            tuple: (current attachment identifiers, stale attachment identifiers)
+        """
+        if issue.key not in self._attachments:
+            self._attachments[issue.key] = self.split_attachments(
+                self.load_deletions(issue), issue
+            )
+
+        return self._attachments[issue.key]
 
     def register(self, document):
         """Get the canonical instance for a document of the chunk.
