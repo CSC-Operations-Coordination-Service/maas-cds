@@ -133,21 +133,30 @@ by hand, one right after the other:
    }
    ```
 
-Do not restart any engine between 1 and 2. Engines read the configuration only
-at start-up:
+Do 1 and 2 right after each other, in this order, then go to step 5.
+maas-engine builds the engines for each message: a process reads the
+configuration on the first message routed to one of the completeness engines
+after it starts, and keeps it until it stops. Processes that already read it
+are not affected by the switch. A process that reads it during the switch (for
+example one started recently that has not had such a message yet) gets:
 
-- no latest document: engines start with no records (completeness and
-  deletion handling silently lose the dataflow)
-- two latest documents with the same records: `MaasConfigError`, the engine
-  fails to start.
+- no latest document (between 1 and 2): no records, kept until the process is
+  restarted (completeness and deletion handling silently lose the dataflow).
+  The restart in step 5 clears it.
+- two latest documents with the same records (2 done before 1):
+  `MaasConfigError` on every message routed to these engines, for as long as
+  both documents are latest. The process keeps running and looks healthy. Each
+  of those messages, for every engine on the same routing key, is rejected
+  without being processed (`ABNORMAL_REJECTION` in the logs) and is not
+  requeued.
 
 Rollback = the same switch in the other direction, then step 5.
 
 ## Step 5 - Restart the engines to refresh the cache
 
 maas-cds has no refresh event for configuration. These caches are
-process-wide and filled once per process, when the engine starts or on the
-first message it handles:
+process-wide and filled once per process, on the first message handled by an
+engine that uses them, not when the process starts:
 
 | Cache | Filled from | Engines that use it |
 | --- | --- | --- |
@@ -161,8 +170,10 @@ configuration.
 
 Then check the engine logs:
 
-- `Loading OcsConfigDataflow configuration` at start-up, without
-  `MaasConfigError`
+- `Loading OcsConfigDataflow configuration` on the first message routed to one
+  of the completeness engines after the restart, with no `MaasConfigError` or
+  `ABNORMAL_REJECTION` after it. The line only appears once such a message
+  arrives.
 - `Loaded dataflow product level-type mapping : <n>` on the first consolidated
   message, with `n` one more than before when a product type was added.
 
