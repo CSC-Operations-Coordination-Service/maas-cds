@@ -12,6 +12,8 @@ from maas_cds.lib.deletion_grouping import (
     strip_issue_prefix,
 )
 
+from maas_cds.model import CdsDeletionIssue
+
 from data.deletion_data_test import make_issue
 
 
@@ -219,3 +221,39 @@ def test_build_groups_tie_break_without_created():
 def test_chunked():
     assert list(chunked([1, 2, 3, 4, 5], 2)) == [[1, 2], [3, 4], [5]]
     assert list(chunked([], 2)) == []
+
+
+def test_single_attachment_stored_as_a_scalar():
+    """The JSON extractor of the collector stores a single match as the value
+    itself: a ticket with one attachment has a string, not a list"""
+    issue = make_issue(attachment_ids="12345", attachments="OMCS-1234_LTA_Werum.csv")
+
+    assert issue.current_attachment_ids == {"12345"}
+    assert issue.attachment_filenames == {"OMCS-1234_LTA_Werum.csv"}
+
+    read_back = CdsDeletionIssue.from_opensearch(
+        {
+            "_index": "cds-deletion-issue",
+            "_id": "OMCS-1234",
+            "_source": {"key": "OMCS-1234", "attachment_ids": 12345},
+        }
+    )
+
+    assert read_back.current_attachment_ids == {"12345"}
+    assert read_back.attachment_filenames == set()
+
+
+def test_single_attachment_stored_as_a_scalar_is_current():
+    """Its only attachment is not taken for a detached one"""
+    issue = make_issue(attachment_ids="10")
+
+    current, stale = build_groups(
+        [
+            attachment("9", created=zulu(1), service_id="Werum"),
+            attachment("10", created=zulu(2), service_id="Werum"),
+        ],
+        issue,
+    )
+
+    assert current == ["10"]
+    assert stale == ["9"]

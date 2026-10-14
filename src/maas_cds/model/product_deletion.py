@@ -11,6 +11,28 @@ __all__ = [
 ]
 
 
+def as_list(value) -> list:
+    """Get a keyword field of several values as a list
+
+    The JSON extractor of the collector stores a single match as the value
+    itself, not as a list of one: a ticket with one attachment has its
+    identifier as a plain string.
+
+    Args:
+        value: the field as read from the index
+
+    Returns:
+        list: the values, empty when the field is not set
+    """
+    if value is None:
+        return []
+
+    if isinstance(value, (str, int)):
+        return [value]
+
+    return list(value)
+
+
 class CdsInterfaceProductDeletion(generated.CdsInterfaceProductDeletion):
     """
     CdsInterfaceProductDeletion override
@@ -42,7 +64,7 @@ class CdsDeletionIssue(generated.CdsDeletionIssue):
                 collection of attachment identities
         """
         return {
-            name.strip() for name in (self.attachments or []) if name and name.strip()
+            name.strip() for name in as_list(self.attachments) if name and name.strip()
         }
 
     @property
@@ -58,6 +80,6 @@ class CdsDeletionIssue(generated.CdsDeletionIssue):
         """
         return {
             str(attachment_id).strip()
-            for attachment_id in (self.attachment_ids or [])
+            for attachment_id in as_list(self.attachment_ids)
             if attachment_id is not None and str(attachment_id).strip()
         }
