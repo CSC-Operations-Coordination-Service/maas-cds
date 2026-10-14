@@ -4,7 +4,7 @@ DA0 classes generated from index templates.
 
 **DO NOT EDIT, ONLY INHERIT !**
 
-Generated date: 2026-10-12T12:21:26.084318+00:00
+Generated date: 2026-10-14T13:17:01.992029+00:00
 
 Generated from:
     - resources/templates/cds-acquisition-pass-status_template.json
@@ -193,6 +193,7 @@ __all__ = [
     "S3pMetricsThinLayer",
     "S3pSession",
     "S3pSessionCaduFiles",
+    "S3pSessionCompleteness",
     "S3pSessionL0PpGranules",
     "SatUnavailabilityProduct",
 ]
@@ -2008,6 +2009,10 @@ class CdsDeletionIssue(MAASDocument):
     def _matches(cls, hit):
         return hit["_index"].startswith("cds-deletion-issue")
 
+    attachment_ids = Keyword()
+
+    attachments = Keyword()
+
     created = ZuluDate()
 
     deletion_cause = Keyword()
@@ -2414,6 +2419,10 @@ class CdsInterfaceProductDeletion(MAASDocument):
     LTA_S5P_DLR_status = Keyword()
 
     LTA_Werum_status = Keyword()
+
+    attachment_created = ZuluDate()
+
+    attachment_id = Keyword()
 
     effective_product_name = Keyword()
 
@@ -3318,6 +3327,10 @@ class DeletionIssue(MAASRawDocument):
     _PARTITION_FIELD = "ingestionTime"
 
     _PARTITION_FIELD_FORMAT = "static"
+
+    attachment_ids = Keyword()
+
+    attachments = Keyword()
 
     created = ZuluDate()
 
@@ -4251,6 +4264,10 @@ class ProductDeletion(MAASRawDocument):
 
     _PARTITION_FIELD_FORMAT = "static"
 
+    attachment_created = ZuluDate()
+
+    attachment_id = Keyword()
+
     interface_type = Keyword()
 
     product_name = Keyword()
@@ -4437,6 +4454,30 @@ class S3pSessionCaduFiles(InnerDoc):
     cadu_delivery_out = ZuluDate()
 
 
+class S3pSessionCompleteness(InnerDoc):
+    """
+    Inner document class for parent class: S3pSession
+
+    Generated from property: completeness
+    """
+
+    product_type = Keyword()
+
+    value = Long()
+
+    expected = Long()
+
+    value_adjusted = Long()
+
+    percentage = Float()
+
+    status = Keyword()
+
+    sensing_start_date = ZuluDate()
+
+    sensing_stop_date = ZuluDate()
+
+
 class S3pSessionL0PpGranules(InnerDoc):
     """
     Inner document class for parent class: S3pSession
@@ -4447,6 +4488,8 @@ class S3pSessionL0PpGranules(InnerDoc):
     product_name = Keyword()
 
     product_type = Keyword()
+
+    timeliness = Keyword()
 
     flux = Keyword()
 
@@ -4491,6 +4534,8 @@ class S3pSession(MAASDocument):
 
     cadu_files = Object(S3pSessionCaduFiles)
 
+    completeness = Object(S3pSessionCompleteness)
+
     delivery_start_to_eum = ZuluDate()
 
     delivery_stop_to_eum = ZuluDate()
@@ -4519,11 +4564,23 @@ class S3pSession(MAASDocument):
 
     generation_timeliness_from_acq_stop_qrt = Long()
 
+    global_expected = Long()
+
+    global_percentage = Float()
+
+    global_status = Keyword()
+
+    global_value = Long()
+
+    global_value_adjusted = Long()
+
     hkraw_delivery_time = ZuluDate()
 
     hkraw_name = Keyword()
 
     hkraw_size = Long()
+
+    is_missing = Boolean()
 
     l0pp_granules = Object(S3pSessionL0PpGranules)
 

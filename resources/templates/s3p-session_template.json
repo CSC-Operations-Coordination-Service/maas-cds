@@ -89,6 +89,9 @@
             "satellite_id": {
                 "type": "keyword"
             },
+            "is_missing": {
+                "type": "boolean"
+            },
             "hkraw_delivery_time": {
                 "type": "date",
                 "locale": "utc"
@@ -106,6 +109,9 @@
                         "type": "keyword"
                     },
                     "product_type": {
+                        "type": "keyword"
+                    },
+                    "timeliness": {
                         "type": "keyword"
                     },
                     "flux": {
@@ -145,6 +151,60 @@
                         "type": "long"
                     }
                 }
+            },
+            "completeness": {
+                "type": "object",
+                "properties": {
+                    "product_type": {
+                        "type": "keyword"
+                    },
+                    "value": {
+                        "type": "long"
+                    },
+                    "expected": {
+                        "type": "long"
+                    },
+                    "value_adjusted": {
+                        "type": "long"
+                    },
+                    "percentage": {
+                        "type": "float",
+                        "meta": {
+                            "metric_type": "gauge",
+                            "unit": "percent"
+                        }
+                    },
+                    "status": {
+                        "type": "keyword"
+                    },
+                    "sensing_start_date": {
+                        "type": "date",
+                        "locale": "utc"
+                    },
+                    "sensing_stop_date": {
+                        "type": "date",
+                        "locale": "utc"
+                    }
+                }
+            },
+            "global_value": {
+                "type": "long"
+            },
+            "global_expected": {
+                "type": "long"
+            },
+            "global_value_adjusted": {
+                "type": "long"
+            },
+            "global_percentage": {
+                "type": "float",
+                "meta": {
+                    "metric_type": "gauge",
+                    "unit": "percent"
+                }
+            },
+            "global_status": {
+                "type": "keyword"
             }
         },
         "_meta": {}
