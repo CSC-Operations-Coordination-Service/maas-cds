@@ -48,7 +48,9 @@ class CdsPublication(
         self.deletion_date = issue.deletion_date
         self.deletion_cause = issue.deletion_cause
 
-    def unmark_as_deleted(self, issue: "DeletionIssue", service_ids: dict = None) -> bool:
+    def unmark_as_deleted(
+        self, issue: "DeletionIssue", service_ids: dict = None
+    ) -> bool:
         """Revert the deletion attributes set by `issue`.
 
         A publication is already scoped to a single service by its service_type /

@@ -107,9 +107,7 @@ def completeness_s3_configuration():
         "maas_cds.model.configuration.OcsConfigCompletenessS3.load"
     ) as mock_load:
         mock_load.return_value = [
-            OcsConfigCompletenessS3(
-                **{"latest": True, "key": "v1", "records": records}
-            )
+            OcsConfigCompletenessS3(**{"latest": True, "key": "v1", "records": records})
         ]
 
         MaasConfigManager(config_model_class=[OcsConfigCompletenessS3()])
