@@ -1,6 +1,8 @@
 """Deletion tracking system"""
 
-from typing import List
+from typing import List, Optional
+
+from opensearchpy import Q
 
 from maas_cds.model.generated import MaasConfigCollector
 from maas_cds.model.product import CdsProduct
@@ -299,7 +301,7 @@ class TrackDeletionEngine(DataEngine, CredentialMixin):
             "[%s] - Trying to fetch product %s", interface_name, product_uuid
         )
 
-        collect_conf = MaasConfigCollector.get_by_id(interface_name)
+        collect_conf = self.collector_configuration(interface_name)
 
         if collect_conf is None:
             self.logger.warning("There is not collector config for %s", interface_name)
@@ -324,6 +326,47 @@ class TrackDeletionEngine(DataEngine, CredentialMixin):
         )
 
         return item_status
+
+    def collector_configuration(
+        self, interface_name: str
+    ) -> Optional[MaasConfigCollector]:
+        """The maas-config-collector document of an interface, None when there
+        is none or several.
+
+        Searched by its interface_name field: the configuration API gives the
+        documents it creates counter ids, not the interface name. The keyword
+        sub-field matches the indices mapped before interface_name was a
+        keyword.
+
+        Args:
+            interface_name (str): Name of the interface to collect
+
+        Returns:
+            MaasConfigCollector: its configuration, or None
+        """
+        found = list(
+            MaasConfigCollector.search()
+            .filter(
+                Q(
+                    "bool",
+                    should=[
+                        Q("term", interface_name=interface_name),
+                        Q("term", **{"interface_name.keyword": interface_name}),
+                    ],
+                    minimum_should_match=1,
+                )
+            )
+            .params(size=2)
+            .execute()
+        )
+
+        if len(found) > 1:
+            self.logger.error(
+                "Several collector configs for %s: none is used", interface_name
+            )
+            return None
+
+        return found[0] if found else None
 
     def retrieve_associated_container(self, deletion, service_id, possible_name):
 

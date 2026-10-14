@@ -1,6 +1,6 @@
 {
     "index_patterns": [
-        "maas-config-service*"
+        "ocs-config-satellite*"
     ],
     "settings": {
         "index": {
@@ -16,8 +16,17 @@
             "short_name": {
                 "type": "keyword"
             },
+            "mission": {
+                "type": "keyword"
+            },
             "key": {
                 "type": "keyword"
+            },
+            "valid_from": {
+                "type": "date"
+            },
+            "valid_to": {
+                "type": "date"
             }
         },
         "_meta": {}

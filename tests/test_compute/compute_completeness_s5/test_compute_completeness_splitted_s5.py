@@ -3,7 +3,7 @@ from maas_cds.lib.config_manager import MaasConfigManager
 from maas_cds.model.cds_completeness.cds_completeness_splitted_s5 import (
     CdsCompletenessSplittedS5,
 )
-from maas_cds.model.configuration import MaasConfigCompletenessS5
+from maas_cds.model.configuration import OcsConfigCompletenessS5
 import pytest
 from maas_model.date_utils import datestr_to_utc_datetime
 
@@ -34,13 +34,13 @@ def cds_completeness_splitted_s5_dict():
     }
 
 
-@patch("maas_cds.model.configuration.MaasConfigCompletenessS5.load")
+@patch("maas_cds.model.configuration.OcsConfigCompletenessS5.load")
 def test_expected_splitted_with_tolerence_splitted(
     mock_maas_config_load, cds_completeness_splitted_s5_dict
 ):
     """Test completeness and observation period computation"""
     mock_maas_config_load.return_value = [
-        MaasConfigCompletenessS5(
+        OcsConfigCompletenessS5(
             **{
                 "latest": True,
                 "key": "v1",
@@ -312,7 +312,7 @@ def test_expected_splitted_with_tolerence_splitted(
 
     MaasConfigManager(
         config_model_class=[
-            MaasConfigCompletenessS5(),
+            OcsConfigCompletenessS5(),
         ]
     )
     completeness_doc = CdsCompletenessSplittedS5(**cds_completeness_splitted_s5_dict)

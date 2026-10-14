@@ -6,7 +6,7 @@ import copy
 from datetime import datetime, timedelta, UTC
 from maas_cds.lib.config_manager import MaasConfigManager
 from maas_cds.model.cds_completeness.cds_completeness import CdsCompleteness
-from maas_cds.model.configuration.maas_config import MaasConfigCompleteness
+from maas_cds.model.configuration.maas_config import OcsConfigCompleteness
 from opensearchpy import Q
 
 from maas_engine.engine.rawdata import DataEngine
@@ -70,7 +70,7 @@ class ConsolidateMpFileEngine(MissionMixinEngine, AnomalyImpactMixinEngine, Data
         )
         self.tolerance_value = tolerance_value
         self.config_manager = MaasConfigManager(
-            config_model_class=MaasConfigCompleteness()
+            config_model_class=OcsConfigCompleteness()
         )
 
         self.merge_reports = merge_reports
@@ -580,7 +580,7 @@ class ConsolidateMpFileEngine(MissionMixinEngine, AnomalyImpactMixinEngine, Data
         # Get completeness services to compute for this MpProduct
         # No need to use cache
         all_config = self.config_manager.get_config(
-            MaasConfigCompleteness().__class__.__name__
+            OcsConfigCompleteness().__class__.__name__
         )
 
         applicable_configs = [

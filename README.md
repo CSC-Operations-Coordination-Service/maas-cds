@@ -48,10 +48,13 @@ Additionally, the following options are useful for development and debug:
 - Usage
 
 ```bash
-usage: el_grando_satruman [-h] [--es-username ES_USERNAME] [--es-password ES_PASSWORD] [--es-url ES_URL] [--es-timeout ES_TIMEOUT] [--es-retries ES_RETRIES] [--es-reject-errors]
-                          [--amqp-username AMQP_USERNAME] [--amqp-password AMQP_PASSWORD] [--amqp-url AMQP_URL] [--amqp-retries AMQP_RETRIES] [--amqp-max-priority AMQP_MAX_PRIORITY]
-                          [--amqp-priority AMQP_PRIORITY] [--chunk-size CHUNK_SIZE] [-v] [-vv] [-c CONFIG] [--document-class DOCUMENT_CLASS] [--routing-key ROUTING_KEY] [--query-string QUERY_STRING]
-                          [--operation OPERATION] [--operation-args OPERATION_ARGS] [-d]
+usage: el_grando_satruman [-h] [--es-username ES_USERNAME] [--es-password ES_PASSWORD] [--es-url ES_URL] [--es-vault-path ES_VAULT_PATH] [--es-timeout ES_TIMEOUT] [--es-retries ES_RETRIES]
+                          [--es-reject-errors] [--es-ignore-certs-verification ES_IGNORE_CERTS_VERIFICATION] [--es-requeue-missing-input ES_REQUEUE_MISSING_INPUT] [--amqp-username AMQP_USERNAME]
+                          [--amqp-password AMQP_PASSWORD] [--amqp-url AMQP_URL] [--amqp-vault-path AMQP_VAULT_PATH] [--amqp-retries AMQP_RETRIES] [--amqp-max-priority AMQP_MAX_PRIORITY]
+                          [--amqp-heartbeat AMQP_HEARTBEAT] [--vault-addr VAULT_ADDR] [--vault-kv-mount VAULT_KV_MOUNT] [--vault-auth-method {approle,token}] [--vault-role-id VAULT_ROLE_ID]
+                          [--vault-secret-id-file VAULT_SECRET_ID_FILE] [--vault-token-file VAULT_TOKEN_FILE] [--amqp-priority AMQP_PRIORITY] [--chunk-size CHUNK_SIZE] [-v] [-vv] -c CONFIG
+                          [--document-class DOCUMENT_CLASS] [--output-document-class OUTPUT_DOCUMENT_CLASS] [--routing-key ROUTING_KEY] [--query-string QUERY_STRING] [--operation OPERATION]
+                          [--operation-args OPERATION_ARGS] [-d]
 ```
 
 - Concret args usage
@@ -69,7 +72,8 @@ usage: el_grando_satruman [-h] [--es-username ES_USERNAME] [--es-password ES_PAS
     -d, --dry-run : Dry run no data update / no message send
     --chunk-size : How many target entities by message
     --amqp-priority : The message priority (usefull for quick processing or low priority)
-    ...args : Other args aiming es/amqp mainly provided by ENV_VAR
+    ...args : Other args aiming es/amqp mainly provided by ENV_VAR  
+    --es-vault-path / --amqp-vault-path : Read the OpenSearch / AMQP connection from OpenBao or HashiCorp Vault instead (ES_VAULT_PATH / AMQP_VAULT_PATH, with the VAULT_* settings), see the maas-engine page docs/vault.md
 
 ### Query engine (No operation provided)
 

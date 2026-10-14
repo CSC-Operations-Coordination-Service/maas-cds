@@ -1,6 +1,6 @@
 {
     "index_patterns": [
-        "maas-config-dataflow*"
+        "ocs-config-dataflow*"
     ],
     "settings": {
         "index": {

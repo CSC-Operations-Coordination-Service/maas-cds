@@ -475,9 +475,9 @@ mock_config_manager_class = patcher_config_manager.start()
 mock_config_manager_instance = MagicMock()
 mock_config_manager_class.return_value = mock_config_manager_instance
 
-# Patch MaasConfigCompleteness if needed (optional, remove if not needed)
+# Patch OcsConfigCompleteness if needed (optional, remove if not needed)
 patcher_config_completeness = patch(
-    "maas_cds.engines.reports.consolidate_mp_file.MaasConfigCompleteness", autospec=True
+    "maas_cds.engines.reports.consolidate_mp_file.OcsConfigCompleteness", autospec=True
 )
 mock_config_completeness_class = patcher_config_completeness.start()
 mock_config_completeness_instance = MagicMock()

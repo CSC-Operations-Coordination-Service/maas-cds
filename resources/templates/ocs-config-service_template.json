@@ -1,6 +1,6 @@
 {
     "index_patterns": [
-        "maas-config-mission*"
+        "ocs-config-service*"
     ],
     "settings": {
         "index": {
@@ -18,6 +18,12 @@
             },
             "key": {
                 "type": "keyword"
+            },
+            "valid_from": {
+                "type": "date"
+            },
+            "valid_to": {
+                "type": "date"
             }
         },
         "_meta": {}
