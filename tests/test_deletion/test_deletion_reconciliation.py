@@ -110,6 +110,9 @@ class FakeIndex:
 
         self.conflicts = 0
 
+        # engine of the last run
+        self.engine = None
+
     def plug(self, engine):
         """Replace the database lookups of an engine"""
         engine.load_deletions = lambda issue: [
@@ -175,9 +178,9 @@ class FakeIndex:
 
         return True, {"index": details | {"status": 200, "result": "updated"}}
 
-    def run(self, issues):
+    def run(self, issues, **options):
         """Process a CdsDeletionIssue message with a new engine, as the consumer does"""
-        engine = self.plug(DeletionConsolidatorEngine())
+        engine = self.engine = self.plug(DeletionConsolidatorEngine(**options))
 
         payload = MAASMessage(document_class="CdsDeletionIssue")
         engine.payload = payload
@@ -986,6 +989,47 @@ def test_later_tickets_are_read_for_the_names_of_the_chunk_only():
     assert by_id["PRODUCT_A"]["LTA_Werum_deletion_issue"] == "OMCS-1"
     assert by_id["PRODUCT_B"]["LTA_Werum_deletion_issue"] == "OMCS-2"
     assert by_id["PRODUCT_C"]["LTA_Werum_deletion_issue"] == "OMCS-1"
+
+
+@pytest.mark.parametrize("index_class", [FakeIndex, EagerIndex])
+def test_documents_written_for_the_earlier_tickets_are_bounded(index_class):
+    """The keys of the documents written for the earlier tickets of a message are
+    kept, see flush(). Past max_documents, the rest of the message is left to its
+    retry, which finds them unchanged and gets further."""
+    first = make_issue(key="OMCS-1")
+    second = make_issue(key="OMCS-2", deletion_interfaces=["Exprivia"])
+
+    names = [f"PRODUCT_{index}" for index in range(6)]
+
+    index = index_class(
+        [make_product(name) for name in names]
+        + [ticket_row(name, "OMCS-1") for name in names]
+        + [ticket_row(name, "OMCS-2", service="Exprivia") for name in names]
+    )
+
+    held = []
+
+    for _ in range(8):
+        try:
+            index.run([first, second], max_documents=2, terms_chunk_size=2)
+        except HandleMessageException:
+            # pylint: disable=protected-access
+            held.append(len(index.engine._written))
+            continue
+
+        break
+
+    # a chunk of OMCS-1 per run, then the last 2 Exprivia marks left to the retry
+    assert held == [2, 2, 2]
+
+    assert index.conflicts == 0
+
+    for name in names:
+        product = index.documents[("cds-product-2024-05", name)]
+
+        assert product.LTA_Werum_deletion_issue == "OMCS-1"
+        assert product.LTA_Exprivia_deletion_issue == "OMCS-2"
+        assert product.nb_lta_deleted == 2
 
 
 SERVICES = ["Werum", "Exprivia"]

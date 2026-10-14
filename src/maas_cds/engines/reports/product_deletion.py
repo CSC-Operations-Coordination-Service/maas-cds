@@ -29,7 +29,10 @@ class DeletionConsolidatorEngine(
 
     The names of a ticket are handled in chunks of ``terms_chunk_size``: the
     documents of a chunk are looked up, changed, handed to the bulk, then
-    released, so the memory of a run is bounded by the chunk, not by the ticket.
+    released. Besides the deletion rows of the current ticket, a run holds the
+    documents of its current chunk and the keys of about ``max_documents``
+    documents written for the earlier tickets of the message, see flush(): the
+    products and publications of a whole ticket or message are never held at once.
 
     When several tickets of a message list a name, the last one marks it, as if
     every ticket was applied in turn to the same document, see later_marks().
@@ -58,11 +61,14 @@ class DeletionConsolidatorEngine(
 
         self.interface_dict = interface_dict or DEFAULT_INTERFACE_DICT
 
-        # safety net, per chunk: a chunk is expected to match about one product and
-        # one publication per service for each name. Far more means a pathological
-        # match, that would be loaded in memory at once: the message is rejected.
-        # A run as a whole holds nothing but its current chunk, so a big ticket
-        # only takes longer and is never limited.
+        # safety nets against what a run would hold in memory at once:
+        # - a chunk is expected to match about one product and one publication per
+        #   service for each name. Far more means a pathological match: the message
+        #   is rejected.
+        # - the keys of the documents written for the earlier tickets of the
+        #   message are kept, see flush(). Past max_documents, the rest of the
+        #   message is left to its retry, which finds them unchanged.
+        # A big ticket or message only takes longer and is never limited.
         self.max_documents = max_documents
 
         # names looked up, then written, at once
@@ -78,6 +84,9 @@ class DeletionConsolidatorEngine(
         # documents left to the retry of the message, see flush()
         self._deferred = 0
 
+        # the rest of the message is left to its retry, see reconcile_issue()
+        self._truncated = False
+
         # names of the payload per ticket, see payload_scopes()
         self._scopes = None
 
@@ -88,12 +97,18 @@ class DeletionConsolidatorEngine(
     # pylint: enable=R0913
 
     def run(self, routing_key, payload):
-        """Override to requeue the message when a document was left to its retry
+        """Override to requeue the message when a part of it was left to its retry
 
         The exception is raised once the bulk is over, so that every other action
         is applied first.
         """
         reports = list(super().run(routing_key, payload))
+
+        if self._truncated:
+            raise HandleMessageException(
+                f"{self.ENGINE_ID}: {len(self._written)} documents written for the "
+                "first tickets of the message, the rest is left to its retry"
+            )
 
         if self._deferred:
             raise HandleMessageException(
@@ -111,6 +126,8 @@ class DeletionConsolidatorEngine(
 
         self._deferred = 0
 
+        self._truncated = False
+
         self._attachments = {}
 
         issues = self.resolve_issues()
@@ -118,6 +135,13 @@ class DeletionConsolidatorEngine(
         self._scopes = self.payload_scopes()
 
         for position, issue in enumerate(issues):
+            if self._truncated:
+                self.logger.info(
+                    "%d tickets of the message left to its retry",
+                    len(issues) - position,
+                )
+                return
+
             yield from self.reconcile_issue(
                 issue, scope=self.issue_scope(issue), later=issues[position + 1 :]
             )
@@ -300,6 +324,20 @@ class DeletionConsolidatorEngine(
         for chunk in chunked(
             sorted(stale_names | current_names), self.terms_chunk_size
         ):
+            if remember and self._written and len(self._written) >= self.max_documents:
+                # the keys kept for the next tickets are bounded too. The retry
+                # finds every document written so far unchanged, so it gets further
+                self._truncated = True
+
+                self.logger.info(
+                    "[%s] %d documents written, %d for the message: the rest of it "
+                    "is left to its retry, with the stale deletions",
+                    issue.key,
+                    written,
+                    len(self._written),
+                )
+                return
+
             self.plan_chunk(
                 issue,
                 chunk,
