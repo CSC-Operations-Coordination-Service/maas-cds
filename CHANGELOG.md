@@ -1,5 +1,18 @@
 # Changelog
 
+## Version 2.17.0
+
+### Upgrade
+
+- The `s3p-session` template gains `is_missing`, `l0pp_granules.timeliness`, the
+  `completeness` object and `global_value`, `global_expected`, `global_value_adjusted`,
+  `global_percentage` and `global_status`. Before a `CONSOLIDATE_S3P_SESSION` engine
+  runs 2.17, put the new template and add these fields to the mapping of the existing
+  `s3p-session` index (`PUT s3p-session/_mapping`): a template only applies to the
+  indices created after it, and no 2.17 patch does this. Otherwise OpenSearch types the
+  fields from the first session written, `global_status` and the other keywords as
+  `text` and `global_value` as `float`, and only a reindex fixes that.
+
 ## Version 2.16.0
 
 ### OCS configurations move to `ocs-config-*`
