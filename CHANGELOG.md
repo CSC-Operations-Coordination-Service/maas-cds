@@ -2,23 +2,65 @@
 
 ## Version 2.17.0
 
-### CONSOLIDATE_DELETION
+### Deletion tickets follow their attachments
+
+- CONSOLIDATE_DELETION can now keep the deletions of a ticket in line with the files
+  attached to it. When an attachment is replaced by a newer file for the same service,
+  uploaded again with products removed, or detached from the ticket, the products and
+  publications that only it listed are no longer flagged deleted, and its rows in
+  `cds-interface-product-deletion` are deleted.
+- The rollback only clears what the ticket set. On a product, it removes the
+  `<interface>_<service>_is_deleted`, `_deletion_issue`, `_deletion_date` and
+  `_deletion_cause` fields that carry the ticket key, then recounts `nb_dd_deleted` or
+  `nb_lta_deleted`. On a publication, it removes `deletion_issue`, `deletion_date` and
+  `deletion_cause`.
+- An attachment is identified by its JIRA identifier, which changes at every upload,
+  even when the file does not. maas-collector 3.10.0 and later stamp it on each row as
+  `attachment_id` and `attachment_created` when the JIRA collector configuration of the
+  deletion tickets sets `"attachment_extra_fields": {"attachment_id": "id",
+  "attachment_created": "created"}` and `"attachment_date_fields":
+  ["attachment_created"]`. The ticket gives its current attachments in `attachment_ids`
+  and `attachments`: add ``"attachment_ids": "`this`.fields.attachment[:].id"`` and
+  ``"attachments": "`this`.fields.attachment[:].filename"`` to its extractor.
+- Until that configuration changes, nothing changes: a row without `attachment_id` is
+  never rolled back, and a ticket without `attachment_ids` never has a detached
+  attachment. Do not change it yet, see "Do not turn on yet" below.
+- An attachment belongs to the service its file name names: `werum`, `exprivia`,
+  `acri`, `cloudferro`, `dlr`, `cdse`, `dhus`, or the service name itself (new option
+  `interface_dict`). When the name names none, it belongs to the only deletion interface
+  of the ticket. Within a service, the most recent attachment wins.
+- When every attachment of a ticket is replaced or detached, the whole ticket is rolled
+  back, with the warning `every attachment is superseded or detached: rolling back the
+  whole ticket`.
+- Tickets of more than 10000 rows or products are handled in full. Before, only the
+  first 10000 rows, products and publications were read.
+- When its `send_reports` option is true, CONSOLIDATE_DELETION now reports the products
+  and publications it marks or clears on the mission routing keys
+  (`update.cds-product-s2`, `update.cds-publication-s2`, ...), which recomputes their
+  completeness. 2.16 never sent these reports. The option defaults to false.
+- The `raw-data-product-deletion` and `cds-interface-product-deletion` templates gain
+  `attachment_id` (keyword) and `attachment_created` (date). The
+  `raw-data-deletion-issue` and `cds-deletion-issue` templates gain `attachments` and
+  `attachment_ids` (keyword). `cds-interface-product-deletion` also maps
+  `ingestionTime`.
+
+### How CONSOLIDATE_DELETION processes a message
 
 - A ticket is handled chunk by chunk: the engine looks up the products and publications
   of `terms_chunk_size` names (1024 by default), writes their changes, then moves on to
   the next names. A big ticket only takes longer.
-- `max_documents` (50000 by default) now limits the documents matched by one chunk,
-  not by the whole message. Above it, the match is pathological: the message is
-  rejected and logged as `NORMAL_REJECTION` instead of being requeued, and the later
-  tickets of the message are dropped with it. The chunks written before stay written,
-  and the rows of a superseded attachment are kept.
+- A `CdsInterfaceProductDeletion` message looks up only the names it carries, unless an
+  attachment of the ticket is superseded: the rollback then needs the whole ticket. A
+  `CdsDeletionIssue` message still looks up every name of its tickets.
+- `max_documents` (50000 by default) limits the documents matched by one chunk. Above
+  it, the match is pathological: the message is rejected and logged as
+  `NORMAL_REJECTION` instead of being requeued, and the later tickets of the message are
+  dropped with it. The chunks written before stay written, and the rows of a superseded
+  attachment are kept.
 - `max_documents` also limits the documents written for the earlier tickets of a
   message, whose identifiers the engine keeps until the end of the run. Above it, the
   rest of the message is left to its retry: the engine requeues it once the bulk is
   over, and the retry finds the documents already written unchanged.
-- A `CdsInterfaceProductDeletion` message looks up only the names it carries, unless an
-  attachment of the ticket is superseded: the rollback then needs the whole ticket. A
-  `CdsDeletionIssue` message still looks up every name of its tickets.
 - When several tickets of a message list a product, the last one marks it: the deletion
   issue, date and cause of a service on the product, and of the publication on that
   service, are the ones of that ticket. A ticket that only rolls the product back does
@@ -29,18 +71,98 @@
   is written.
 - With `send_reports` enabled, the products and publications written by a run that
   ends in a requeue are not reported: the consumer only sends the reports of a message
-  it acknowledges, and the retry finds them unchanged. Reports are off by default.
+  it acknowledges, and the retry finds them unchanged.
+
+### S3P session completeness
+
+- CONSOLIDATE_S3P_SESSION computes the sensing completeness of each session from the
+  validity of its L0PP granules. The new `completeness` list has one entry per level-0
+  product type of `ocs-config-completeness-s3`, plus `OL_0_CR____` (44 minutes), with
+  `product_type`, `value`, `expected`, `value_adjusted`, `percentage`, `status`,
+  `sensing_start_date` and `sensing_stop_date`.
+- A product type the session misses reads 0%. It is dated at the middle of the sensing
+  the session covers, or of its acquisition window, so that it shows on the time axis.
+- A granule type counts as its full orbit type: `TM_0_NAT__G` as `TM_0_NAT___`. When
+  the configuration has several timeliness for a product type, the `NR` record gives the
+  expected sensing.
+- The session also gets a completeness over all its product types: `global_value`,
+  `global_expected`, `global_value_adjusted`, `global_percentage` and `global_status`.
+- Each L0PP granule added from now on records its `timeliness`, read from its name.
+- The engine loads `ocs-config-completeness-s3` once per process: restart it after a
+  change. Without that index, it logs `No S3 completeness configuration: the session
+  completeness will not be computed`, and the sessions only get the `OL_0_CR____` entry.
+
+### S3P missing downlink orbits
+
+- When CONSOLIDATE_S3P_SESSION consolidates a session that holds a `TM_0_HKM__G`
+  granule, it looks for the previous session of the satellite, by downlink orbit. For
+  each downlink orbit in between, it creates a session
+  `<satellite>_MISSING_______<orbit>`, with `is_missing: true` and every expected
+  product type at 0%.
+- Their acquisition times are spread over the time between the two sessions, or one
+  nominal 101-minute orbit apart when a session has no date. Only the 100 most recent
+  missing orbits of a gap are created, with a warning.
+- When a session arrives for an orbit that has a missing session, the missing session
+  is deleted.
+- Real sessions have no `is_missing` field: leave the missing ones out with
+  `NOT is_missing:true`, not with `is_missing:false`.
+- The `s3p-session` template gains `is_missing` (boolean), `l0pp_granules.timeliness`,
+  the `completeness` object and the `global_*` fields.
+
+### Fixes
+
+- The splitted completeness no longer fails when the completeness configuration of its
+  mission is not loaded. It logs `No OcsConfigCompleteness<mission> configuration
+  loaded` and leaves the document uncomputed. Before, the message was rejected.
+
+### Other changes
+
+- The S3 and S5 completeness share one implementation of the orbit arithmetic that
+  finds the missing datatakes. It finds the same datatakes as before.
+
+### Documentation
+
+- New page "Product type update": how to add or change a product type in the dataflow
+  configuration, and bring the existing products and publications in line.
+
+### Do not turn on yet
+
+- **Attachment reconciliation.** Keep the deletion ticket collector configuration as it
+  is: three known problems are fixed in a later release.
+  - Attachments are grouped by service only. Two lists of one service on one ticket,
+    for example one per satellite, do not add up: the older one is rolled back and its
+    rows are deleted.
+  - Rolling a product back for one ticket clears the mark of that service even when
+    another ticket still lists the product and its mark was overwritten by the first.
+  - The rows of a superseded attachment are deleted in the same run as the rollback.
+    When another engine writes the same product at the same moment and the rollback
+    gets a conflict, the rows are gone and the retry never redoes the rollback.
+- **CONSOLIDATE_S3P_SESSION on 2.17.** A missing session is deleted from `s3p-session`
+  when its real session arrives, but an export of `s3p-session` to another store keeps
+  it. Make such an export drop the missing sessions an orbit's real session replaces
+  before the S3P engine runs 2.17.
 
 ### Upgrade
 
-- The `s3p-session` template gains `is_missing`, `l0pp_granules.timeliness`, the
-  `completeness` object and `global_value`, `global_expected`, `global_value_adjusted`,
-  `global_percentage` and `global_status`. Before a `CONSOLIDATE_S3P_SESSION` engine
-  runs 2.17, put the new template and add these fields to the mapping of the existing
-  `s3p-session` index (`PUT s3p-session/_mapping`): a template only applies to the
-  indices created after it, and no 2.17 patch does this. Otherwise OpenSearch types the
-  fields from the first session written, `global_status` and the other keywords as
-  `text` and `global_value` as `float`, and only a reindex fixes that.
+- From 2.15 or older, do the 2.16.0 upgrade first, `patch_2_16_0` included: the S3P
+  engine reads `ocs-config-completeness-s3`.
+- 2.17.0 has no patch command, and the engines never put templates. Before you start
+  the 2.17 engines, put the five changed templates (`cds-deletion-issue`,
+  `cds-interface-product-deletion`, `raw-data-deletion-issue`,
+  `raw-data-product-deletion` and `s3p-session`) and add their new fields to the
+  mapping of the existing indices (`PUT <index>/_mapping`): a template only applies to
+  the indices created after it. A field written before that is mapped dynamically,
+  `global_status` and the other keywords as `text` and `global_value` as `float`, and
+  only a reindex changes it. `s3p-session` is a single index.
+- Existing sessions get their completeness when they are next consolidated. Missing
+  orbits are only looked for from the sessions consolidated after the upgrade, back to
+  the previous session of the satellite.
+
+### Known issue
+
+- COMPUTE_COMPLETENESS_V2 still rejects the S1 and S2 messages with
+  `CdsCompleteness.find_brother_products_scan() got an unexpected keyword argument
+  'include_deleted'`, as in 2.15 and 2.16.
 
 ## Version 2.16.0
 
