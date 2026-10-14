@@ -1,7 +1,5 @@
 """Splitted Completeness calculation"""
 
-import re
-import typing
 from maas_cds.lib.config_manager import MaasConfigManager
 from maas_cds.model.configuration import OcsConfigCompleteness, OcsConfigDataflow
 from maas_cds.model.configuration.maas_config import (

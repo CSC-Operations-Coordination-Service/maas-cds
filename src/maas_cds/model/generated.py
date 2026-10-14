@@ -4,7 +4,7 @@ DA0 classes generated from index templates.
 
 **DO NOT EDIT, ONLY INHERIT !**
 
-Generated date: 2026-10-14T12:29:07.630191+00:00
+Generated date: 2026-10-14T12:30:36.413753+00:00
 
 Generated from:
     - resources/templates/cds-acquisition-pass-status_template.json
@@ -193,6 +193,7 @@ __all__ = [
     "S3pMetricsThinLayer",
     "S3pSession",
     "S3pSessionCaduFiles",
+    "S3pSessionCompleteness",
     "S3pSessionL0PpGranules",
     "SatUnavailabilityProduct",
 ]
@@ -4453,6 +4454,30 @@ class S3pSessionCaduFiles(InnerDoc):
     cadu_delivery_out = ZuluDate()
 
 
+class S3pSessionCompleteness(InnerDoc):
+    """
+    Inner document class for parent class: S3pSession
+
+    Generated from property: completeness
+    """
+
+    product_type = Keyword()
+
+    value = Long()
+
+    expected = Long()
+
+    value_adjusted = Long()
+
+    percentage = Float()
+
+    status = Keyword()
+
+    sensing_start_date = ZuluDate()
+
+    sensing_stop_date = ZuluDate()
+
+
 class S3pSessionL0PpGranules(InnerDoc):
     """
     Inner document class for parent class: S3pSession
@@ -4463,6 +4488,8 @@ class S3pSessionL0PpGranules(InnerDoc):
     product_name = Keyword()
 
     product_type = Keyword()
+
+    timeliness = Keyword()
 
     flux = Keyword()
 
@@ -4507,6 +4534,8 @@ class S3pSession(MAASDocument):
 
     cadu_files = Object(S3pSessionCaduFiles)
 
+    completeness = Object(S3pSessionCompleteness)
+
     delivery_start_to_eum = ZuluDate()
 
     delivery_stop_to_eum = ZuluDate()
@@ -4540,6 +4569,8 @@ class S3pSession(MAASDocument):
     hkraw_name = Keyword()
 
     hkraw_size = Long()
+
+    is_missing = Boolean()
 
     l0pp_granules = Object(S3pSessionL0PpGranules)
 
