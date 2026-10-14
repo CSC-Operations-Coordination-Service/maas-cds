@@ -17,6 +17,7 @@ Add a short description here!
 ## Contents
 
 * [Overview](readme)
+* [Product type update](product_type_update)
 * [License](license)
 * [Authors](authors)
 * [Changelog](changelog)
