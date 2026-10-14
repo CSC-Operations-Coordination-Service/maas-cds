@@ -186,6 +186,25 @@
                         "locale": "utc"
                     }
                 }
+            },
+            "global_value": {
+                "type": "long"
+            },
+            "global_expected": {
+                "type": "long"
+            },
+            "global_value_adjusted": {
+                "type": "long"
+            },
+            "global_percentage": {
+                "type": "float",
+                "meta": {
+                    "metric_type": "gauge",
+                    "unit": "percent"
+                }
+            },
+            "global_status": {
+                "type": "keyword"
             }
         },
         "_meta": {}

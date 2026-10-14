@@ -17,6 +17,9 @@ of what it should (Partial), and the two remaining expected ones have no
 granule at all (Missing).
 """
 
+import json
+import pathlib
+
 from unittest.mock import MagicMock, patch
 from types import SimpleNamespace
 
@@ -52,6 +55,23 @@ EXPECTED_44 = 44 * 60 * 1000000
 # The middle of the sensing the session carries, 05:06:44 -> 06:47:44: where a
 # product type with no granule is placed on the time axis
 MISSING_SENSING_DATE = "2026-04-02T05:57:14.000Z"
+
+TEMPLATE = (
+    pathlib.Path(__file__).parents[2]
+    / "resources"
+    / "templates"
+    / "s3p-session_template.json"
+)
+
+# How the template maps the global completeness, the same way as the
+# per-product type one
+GLOBAL_COMPLETENESS_TYPES = {
+    "global_value": "long",
+    "global_expected": "long",
+    "global_value_adjusted": "long",
+    "global_percentage": "float",
+    "global_status": "keyword",
+}
 
 
 def compact(timestamp):
@@ -591,3 +611,33 @@ def test_consolidated_document(session):
     assert document.pop("updateTime")
 
     assert document == EXPECTED_DOCUMENT
+
+
+def test_global_completeness_is_mapped(session):
+    """The global completeness is indexed with the types the template maps
+
+    s3p-session is a single index: a field the template does not map is typed
+    by OpenSearch from the first value written, and stays so until a reindex
+    (global_status as text, global_value as a float).
+    """
+    properties = json.loads(TEMPLATE.read_text(encoding="utf-8"))["mappings"][
+        "properties"
+    ]
+
+    source = session.to_bulk_action()["_source"]
+
+    for field, field_type in GLOBAL_COMPLETENESS_TYPES.items():
+        assert properties[field]["type"] == field_type
+
+        # the model is generated from that template
+        assert S3pSession._doc_type.mapping[field].name == field_type
+
+        assert field in source
+
+    # the long mapping coerces the sensing values, whole microseconds, without
+    # losing anything
+    for field in ("global_value", "global_expected", "global_value_adjusted"):
+        assert float(source[field]).is_integer()
+
+    assert isinstance(source["global_percentage"], float)
+    assert isinstance(source["global_status"], str)

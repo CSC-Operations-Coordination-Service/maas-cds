@@ -4,7 +4,7 @@ DA0 classes generated from index templates.
 
 **DO NOT EDIT, ONLY INHERIT !**
 
-Generated date: 2026-10-14T12:30:36.413753+00:00
+Generated date: 2026-10-14T13:17:01.992029+00:00
 
 Generated from:
     - resources/templates/cds-acquisition-pass-status_template.json
@@ -4563,6 +4563,16 @@ class S3pSession(MAASDocument):
     generation_timeliness_from_acq_stop = Long()
 
     generation_timeliness_from_acq_stop_qrt = Long()
+
+    global_expected = Long()
+
+    global_percentage = Float()
+
+    global_status = Keyword()
+
+    global_value = Long()
+
+    global_value_adjusted = Long()
 
     hkraw_delivery_time = ZuluDate()
 
