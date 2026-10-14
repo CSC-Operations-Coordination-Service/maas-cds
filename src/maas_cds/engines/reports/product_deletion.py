@@ -1,9 +1,12 @@
 """Deletion consolidation"""
 
-from typing import Generator, List
+from typing import Generator, List, Set
 
 from maas_engine.engine.rawdata import DataEngine
-from maas_engine.exceptions import HandleMessageException
+from maas_engine.exceptions import (
+    CannotProcessMessageException,
+    HandleMessageException,
+)
 
 from maas_cds.engines.reports.deletion_reconciliation import DeletionReconciliationMixin
 from maas_cds.engines.reports.mission_mixin import MissionMixinEngine
@@ -23,6 +26,10 @@ class DeletionConsolidatorEngine(
     Marks the products and publications listed by the current attachments of a
     deletion ticket as deleted, and rolls back the ones listed only by a
     superseded attachment.
+
+    The names of a ticket are handled in chunks of ``terms_chunk_size``: the
+    documents of a chunk are looked up, changed, handed to the bulk, then
+    released, so the memory of a run is bounded by the chunk, not by the ticket.
 
     Inherits from :class:`MissionMixinEngine` so that the products and
     publications touched are reported on mission-dedicated routing keys
@@ -48,34 +55,60 @@ class DeletionConsolidatorEngine(
 
         self.interface_dict = interface_dict or DEFAULT_INTERFACE_DICT
 
-        # guard against loading a whole index in memory on a pathological ticket
+        # safety net, per chunk: a chunk is expected to match about one product and
+        # one publication per service for each name. Far more means a pathological
+        # match, that would be loaded in memory at once: the message is rejected.
+        # A run as a whole holds nothing but its current chunk, so a big ticket
+        # only takes longer and is never limited.
         self.max_documents = max_documents
 
+        # names looked up, then written, at once
         self.terms_chunk_size = terms_chunk_size
 
-        # (index, identifier) -> (document, state before this run)
+        # (index, identifier) -> (document, state before this run), for the chunk
+        # being planned only
         self._decisions = {}
 
-        self._stale_actions = []
+        # documents written for an earlier ticket of the message, see flush()
+        self._written = set()
+
+        # documents left to the retry of the message, see flush()
+        self._deferred = 0
 
     # pylint: enable=R0913
+
+    def run(self, routing_key, payload):
+        """Override to requeue the message when a document was left to its retry
+
+        The exception is raised once the bulk is over, so that every other action
+        is applied first.
+        """
+        reports = list(super().run(routing_key, payload))
+
+        if self._deferred:
+            raise HandleMessageException(
+                f"{self.ENGINE_ID}: {self._deferred} documents impacted by several "
+                "tickets of the message are left to its retry"
+            )
+
+        yield from reports
 
     def action_iterator(self):
         """Mark and unmark the documents impacted by the payload tickets"""
         self._decisions = {}
 
-        self._stale_actions = []
+        self._written = set()
 
-        for issue in self.resolve_issues():
-            self.plan_issue(issue)
+        self._deferred = 0
 
-        self.logger.info(
-            "Deletion run touched %d documents, %d stale deletions dropped",
-            len(self._decisions),
-            len(self._stale_actions),
-        )
+        issues = self.resolve_issues()
 
-        yield from self.emit()
+        for position, issue in enumerate(issues, start=1):
+            yield from self.reconcile_issue(
+                issue,
+                # a document written for the last ticket is not met again
+                remember=position < len(issues),
+            )
 
     def resolve_issues(self) -> List[CdsDeletionIssue]:
         """Get the tickets to reconcile, whatever the payload document class.
@@ -113,11 +146,15 @@ class DeletionConsolidatorEngine(
             f"Unexpected input document class for deletion: {document_class}"
         )
 
-    def plan_issue(self, issue: CdsDeletionIssue):
-        """Decide the fate of every document impacted by a ticket
+    def reconcile_issue(self, issue: CdsDeletionIssue, remember: bool) -> Generator:
+        """Decide the fate of every document impacted by a ticket, chunk by chunk
 
         Args:
             issue (CdsDeletionIssue): the deletion ticket
+            remember (bool): record the documents written, for the next tickets
+
+        Yields:
+            dict: bulk actions, documents first, then stale deletions
         """
         deletions = self.load_deletions(issue)
 
@@ -163,14 +200,69 @@ class DeletionConsolidatorEngine(
                 issue.key,
             )
 
+        deferred = self._deferred
+
+        written = 0
+
+        for chunk in chunked(
+            sorted(stale_names | current_names), self.terms_chunk_size
+        ):
+            self.plan_chunk(issue, chunk, current_names, rollback=bool(stale_names))
+
+            for action in self.flush(issue, remember):
+                written += 1
+                yield action
+
+        if self._deferred > deferred:
+            # a rollback left to the retry still needs the rows that list it
+            self.logger.info(
+                "[%s] %d documents written, %d left to the retry with the stale "
+                "deletions",
+                issue.key,
+                written,
+                self._deferred - deferred,
+            )
+            return
+
+        dropped = 0
+
+        for deletion in deletions:
+            if getattr(deletion, "attachment_id", None) in stale_ids:
+                dropped += 1
+                yield deletion.to_bulk_action("delete")
+
+        self.logger.info(
+            "[%s] %d documents written, %d stale deletions dropped",
+            issue.key,
+            written,
+            dropped,
+        )
+
+    def plan_chunk(
+        self,
+        issue: CdsDeletionIssue,
+        names: List[str],
+        current_names: Set[str],
+        rollback: bool,
+    ):
+        """Look up the documents of a chunk of names and change them in memory
+
+        Args:
+            issue (CdsDeletionIssue): the deletion ticket
+            names (List[str]): names of the chunk
+            current_names (set): names the current attachments list
+            rollback (bool): the ticket has products to roll back
+        """
+        self._decisions = {}
+
         for deletable in self.deletable_iterator(
-            sorted(stale_names | current_names),
+            names,
             issue.interface_type,
             issue.deletion_interfaces,
         ):
             document = self.register(deletable)
 
-            if stale_names:
+            if rollback:
                 # revert first so that a product listed by both a superseded and a
                 # current attachment ends up in the state the current one dictates
                 document.unmark_as_deleted(issue)
@@ -178,16 +270,13 @@ class DeletionConsolidatorEngine(
             if self.matched_name(document, issue.interface_type) in current_names:
                 document.mark_as_deleted(issue, issue.deletion_interfaces)
 
-        for deletion in deletions:
-            if getattr(deletion, "attachment_id", None) in stale_ids:
-                self._stale_actions.append(deletion.to_bulk_action("delete"))
-
     def register(self, document):
-        """Get the canonical instance for a document of this run.
+        """Get the canonical instance for a document of the chunk.
 
         A document listed by both a superseded and a current attachment is fetched
         once and mutated once: bulk actions carry an optimistic locking clause, so
-        a second action on the same document would systematically conflict.
+        a second action on the same document would systematically conflict. A
+        document matches a single name, so it belongs to a single chunk.
 
         Args:
             document (MAASDocument): a freshly fetched document
@@ -202,14 +291,64 @@ class DeletionConsolidatorEngine(
 
         if decision is None:
             if len(self._decisions) >= self.max_documents:
-                raise HandleMessageException(
+                # rejected: a requeue would fail the same way forever
+                raise CannotProcessMessageException(
                     f"{self.ENGINE_ID}: more than {self.max_documents} documents "
-                    "impacted in a single run"
+                    f"match {self.terms_chunk_size} names at most: raise "
+                    "max_documents in the engine configuration to process it"
                 )
 
             decision = self._decisions[key] = (document, document.to_dict())
 
         return decision[0]
+
+    def flush(self, issue: CdsDeletionIssue, remember: bool) -> Generator:
+        """Yield at most one bulk action per changed document of the chunk, then
+        release the chunk
+
+        A document already written for an earlier ticket of the message is left to
+        the retry of the message. It was fetched again, most likely before the bulk
+        applied the first write, so a second write would conflict, and bulk chunks
+        run in parallel: either write could be the one lost, with the stale
+        deletions of its ticket applied anyway. The retry reads it with the first
+        write applied, which it then finds unchanged: marking and unmarking give
+        the same result when repeated.
+
+        Args:
+            issue (CdsDeletionIssue): the deletion ticket
+            remember (bool): record the documents written, for the next tickets
+
+        Yields:
+            dict: bulk actions
+        """
+        decisions, self._decisions = self._decisions, {}
+
+        for key, (document, initial_dict) in decisions.items():
+            # a plain comparison is required: the union operator used to keep every
+            # key of the initial state, which made the check blind to the removal
+            # of a field, hence to a rollback
+            if document.to_dict() == initial_dict:
+                continue
+
+            if key in self._written:
+                self.logger.info(
+                    "[%s] %s already written for another ticket of the message: "
+                    "left to the retry",
+                    issue.key,
+                    key,
+                )
+                self._deferred += 1
+                continue
+
+            if remember:
+                # keys only: the documents themselves are released with the chunk
+                self._written.add(key)
+
+            if self.send_reports:
+                # the report map would otherwise hold every document of the run
+                self.report(document)
+
+            yield document.to_bulk_action()
 
     def report(self, document):
         """Override to index the report map on the index the document comes from.
@@ -232,25 +371,6 @@ class DeletionConsolidatorEngine(
         # pylint: disable=protected-access
         self._index_id_document_map[(index_name, document.meta.id)] = document
         # pylint: enable=protected-access
-
-    def emit(self) -> Generator:
-        """Yield at most one bulk action per document, stale deletions last
-
-        Yields:
-            dict: bulk actions
-        """
-        for document, initial_dict in self._decisions.values():
-            # a plain comparison is required: the union operator used to keep every
-            # key of the initial state, which made the check blind to the removal
-            # of a field, hence to a rollback
-            if document.to_dict() == initial_dict:
-                continue
-
-            self.report(document)
-
-            yield document.to_bulk_action()
-
-        yield from self._stale_actions
 
     @staticmethod
     def matched_name(document, interface_type: str) -> str:
