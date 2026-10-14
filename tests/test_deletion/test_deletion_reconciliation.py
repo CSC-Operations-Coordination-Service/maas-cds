@@ -40,18 +40,26 @@ def build_engine(deletions, deletables):
     """An engine whose database accesses are replaced by fixtures"""
     engine = DeletionConsolidatorEngine()
 
-    engine.load_deletions = lambda issue: [
-        deletion
-        for deletion in deletions
-        if deletion.jira_issue == issue.key
-        and deletion.interface_type == issue.interface_type
-    ]
+    def load_deletions(issue):
+        return [
+            deletion
+            for deletion in deletions
+            if deletion.jira_issue == issue.key
+            and deletion.interface_type == issue.interface_type
+        ]
+
+    engine.load_deletions = load_deletions
 
     engine.load_listings = lambda keys, interface_type, names: [
         deletion
         for deletion in deletions
         if listed(deletion, keys, interface_type, names)
     ]
+
+    engine.has_attachment_identity = lambda issue: any(
+        getattr(deletion, "attachment_id", None) is not None
+        for deletion in load_deletions(issue)
+    )
 
     engine.deletable_iterator = lambda names, service_type, service_ids: [
         deletable
@@ -149,6 +157,14 @@ class FakeIndex:
             if isinstance(document, CdsInterfaceProductDeletion)
             and listed(document, keys, interface_type, names)
         ]
+
+        engine.has_attachment_identity = lambda issue: any(
+            getattr(document, "attachment_id", None) is not None
+            for document in self.documents.values()
+            if isinstance(document, CdsInterfaceProductDeletion)
+            and document.jira_issue == issue.key
+            and document.interface_type == issue.interface_type
+        )
 
         def deletable_iterator(names, service_type, service_ids):
             return [
@@ -560,6 +576,91 @@ def test_payload_of_deletions_scopes_each_ticket_to_its_own_rows():
     run_deletions(engine, [rows["OMCS-1"][0], rows["OMCS-2"][1]], [first, second])
 
     assert lookups == [["PRODUCT_A"], ["PRODUCT_D"]]
+
+
+def spy_row_reads(engine):
+    """Record the tickets whose rows are read"""
+    reads = []
+
+    for method in ("load_deletions", "load_listings"):
+
+        def spy(*args, method=method, read=getattr(engine, method)):
+            reads.append(method)
+            return read(*args)
+
+        setattr(engine, method, spy)
+
+    return reads
+
+
+def test_payload_of_deletions_with_no_attachment_identity_reads_no_row():
+    """Rows collected with no attachment identity, for tickets that give none
+    either, cannot tell a superseded attachment: the tickets of the message are
+    reconciled from the rows it carries, with no row of the index read. Every
+    message of a big ticket would otherwise read all of its rows."""
+    first = make_issue(key="OMCS-1")
+    second = make_issue(key="OMCS-2")
+
+    names = ["PRODUCT_A", "PRODUCT_B", "PRODUCT_C"]
+
+    deletions = [ticket_row(name, "OMCS-1") for name in names] + [
+        ticket_row(name, "OMCS-2") for name in names[1:]
+    ]
+
+    engine = build_engine(deletions, [make_product(name) for name in names])
+
+    reads = spy_row_reads(engine)
+
+    lookups = spy_lookups(engine)
+
+    actions = run_deletions(
+        engine, [deletions[0], deletions[1], deletions[3]], [first, second]
+    )
+
+    assert not reads
+
+    assert lookups == [["PRODUCT_A", "PRODUCT_B"], ["PRODUCT_B"]]
+
+    by_id = {action["_id"]: action["_source"] for action in actions}
+
+    # the last ticket of the message that lists a name marks it
+    assert by_id["PRODUCT_A"]["LTA_Werum_deletion_issue"] == "OMCS-1"
+    assert by_id["PRODUCT_B"]["LTA_Werum_deletion_issue"] == "OMCS-2"
+    assert "PRODUCT_C" not in by_id
+
+
+@pytest.mark.parametrize("identity", ["payload", "ticket", "index"])
+def test_payload_of_deletions_with_an_attachment_identity_reads_its_ticket(identity):
+    """An attachment identity on a row of the payload, on the ticket, or on any row
+    of the ticket in the index, may tell a superseded attachment: the rows of the
+    ticket are read"""
+    issue = make_issue(attachment_ids=["11"] if identity == "ticket" else None)
+
+    deletions = [
+        make_deletion("PRODUCT_A", attachment_id="10", created=zulu(1)),
+        make_deletion("PRODUCT_B", attachment_id="11", created=zulu(2)),
+        make_deletion("PRODUCT_C"),
+    ]
+
+    product_a = make_product("PRODUCT_A")
+    product_a.mark_as_deleted(issue, ["Werum"])
+
+    engine = build_engine(
+        deletions,
+        [product_a, make_product("PRODUCT_B"), make_product("PRODUCT_C")],
+    )
+
+    reads = spy_row_reads(engine)
+
+    payload = deletions[1:2] if identity == "payload" else deletions[2:]
+
+    actions = run_deletions(engine, payload, [issue])
+
+    assert reads == ["load_deletions"]
+
+    # attachment 10 is superseded by 11: A is rolled back
+    rollback = next(action for action in actions if action["_id"] == "PRODUCT_A")
+    assert "LTA_Werum_is_deleted" not in rollback["_source"]
 
 
 def test_payload_of_issues_looks_up_the_whole_ticket():

@@ -118,6 +118,10 @@ class DeletionConsolidatorEngine(
         # delete_stale_rows()
         self._stale_rows = []
 
+        # ticket key -> rows of the payload the ticket is reconciled from, None
+        # when it needs all of its rows, see payload_deletions()
+        self._payload_deletions = {}
+
     # pylint: enable=R0913
 
     def run(self, routing_key, payload):
@@ -203,6 +207,8 @@ class DeletionConsolidatorEngine(
 
         self._stale_rows = []
 
+        self._payload_deletions = {}
+
         issues = self.resolve_issues()
 
         self._scopes = self.payload_scopes()
@@ -224,7 +230,8 @@ class DeletionConsolidatorEngine(
 
         Both payload shapes converge here: telling a superseded attachment from
         the current one needs the whole deletion set of a ticket, never the subset
-        carried by the message.
+        carried by the message, unless no attachment identity is recorded, see
+        payload_deletions().
 
         Returns:
             List[CdsDeletionIssue]: tickets
@@ -298,6 +305,55 @@ class DeletionConsolidatorEngine(
         """
         return None if self._scopes is None else self._scopes.get(issue.key, set())
 
+    def payload_deletions(self, issue: CdsDeletionIssue) -> Optional[List]:
+        """Get the rows of the payload a ticket can be reconciled from, once per run
+
+        Telling a superseded attachment needs every row of a ticket. With no
+        attachment identity, neither on the ticket nor on any of its rows, none
+        can be told: a message of deletions then only marks its own names, from
+        its own rows, and reads no row of the ticket. Otherwise, every message of
+        a big ticket would read all of its rows.
+
+        Args:
+            issue (CdsDeletionIssue): the deletion ticket
+
+        Returns:
+            list: rows of the payload for the ticket, None when every row of the
+                ticket is needed
+        """
+        if self._scopes is None or issue.current_attachment_ids:
+            return None
+
+        if issue.key not in self._payload_deletions:
+            rows = [
+                deletion
+                for deletion in self.input_documents
+                if deletion.jira_issue == issue.key
+                and deletion.interface_type == issue.interface_type
+            ]
+
+            if any(
+                getattr(row, "attachment_id", None) is not None for row in rows
+            ) or self.has_attachment_identity(issue):
+                rows = None
+
+            self._payload_deletions[issue.key] = rows
+
+        return self._payload_deletions[issue.key]
+
+    def issue_deletions(self, issue: CdsDeletionIssue) -> List:
+        """Get the rows a ticket is reconciled from
+
+        Args:
+            issue (CdsDeletionIssue): the deletion ticket
+
+        Returns:
+            List[CdsInterfaceProductDeletion]: deletions of the ticket
+        """
+        rows = self.payload_deletions(issue)
+
+        return self.load_deletions(issue) if rows is None else rows
+
     def marked_names(
         self,
         deletions: List,
@@ -346,7 +402,7 @@ class DeletionConsolidatorEngine(
             dict: bulk actions of the documents. The stale deletions are kept for
                 delete_stale_rows()
         """
-        deletions = self.load_deletions(issue)
+        deletions = self.issue_deletions(issue)
 
         if not deletions:
             self.logger.info("No deletion for issue %s: skipping", issue.key)
@@ -522,7 +578,8 @@ class DeletionConsolidatorEngine(
         ticket that still lists the name marks it.
 
         Only the rows of the later tickets that list the names are read, so that a
-        message of many tickets holds no more than a chunk of them.
+        message of many tickets holds no more than a chunk of them, and none for a
+        ticket reconciled from the rows of the message, see payload_deletions().
 
         Args:
             later (list): tickets after the current one in the message
@@ -544,8 +601,24 @@ class DeletionConsolidatorEngine(
 
         listings = {}
 
-        for deletion in self.load_listings(sorted(tickets), interface_type, names):
-            listings.setdefault(deletion.jira_issue, []).append(deletion)
+        wanted = set(names)
+
+        unread = []
+
+        for key, issue in tickets.items():
+            rows = self.payload_deletions(issue)
+
+            if rows is None:
+                unread.append(key)
+                continue
+
+            listings[key] = [
+                row for row in rows if row.effective_product_name in wanted
+            ]
+
+        if unread:
+            for deletion in self.load_listings(sorted(unread), interface_type, names):
+                listings.setdefault(deletion.jira_issue, []).append(deletion)
 
         taken = {}
 
@@ -572,7 +645,7 @@ class DeletionConsolidatorEngine(
         """
         if issue.key not in self._attachments:
             self._attachments[issue.key] = self.split_attachments(
-                self.load_deletions(issue), issue
+                self.issue_deletions(issue), issue
             )
 
         return self._attachments[issue.key]

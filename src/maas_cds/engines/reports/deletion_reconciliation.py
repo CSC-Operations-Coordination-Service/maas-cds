@@ -57,6 +57,26 @@ class DeletionReconciliationMixin:
 
         return list(search.params(size=2000, ignore=404).scan())
 
+    def has_attachment_identity(self, issue: CdsDeletionIssue) -> bool:
+        """Tell whether a deletion of a ticket records the attachment it comes from
+
+        A count: no deletion is read.
+
+        Args:
+            issue (CdsDeletionIssue): the deletion ticket
+
+        Returns:
+            bool: True when an attachment of the ticket could be superseded
+        """
+        search = (
+            CdsInterfaceProductDeletion.search()
+            .filter("term", jira_issue=issue.key)
+            .filter("term", interface_type=issue.interface_type)
+            .filter("exists", field="attachment_id")
+        )
+
+        return search.count() > 0
+
     def load_listings(
         self, keys: List[str], interface_type: str, names: List[str]
     ) -> List:
