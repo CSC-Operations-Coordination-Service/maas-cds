@@ -46,6 +46,33 @@ def run(engine, issue):
     return list(actions_of(engine, issue))
 
 
+def run_deletions(engine, deletions, issues):
+    """Run a CdsInterfaceProductDeletion message carrying `deletions`"""
+    engine.payload = MAASMessage(document_class="CdsInterfaceProductDeletion")
+    engine.input_documents = deletions
+
+    with patch(
+        "maas_cds.engines.reports.product_deletion.CdsDeletionIssue.mget_by_ids",
+        return_value=issues,
+    ):
+        return list(engine.action_iterator())
+
+
+def spy_lookups(engine):
+    """Record the names of every product and publication lookup"""
+    lookups = []
+
+    lookup = engine.deletable_iterator
+
+    def spy(names, service_type, service_ids):
+        lookups.append(list(names))
+        return lookup(names, service_type, service_ids)
+
+    engine.deletable_iterator = spy
+
+    return lookups
+
+
 class FakeIndex:
     """Serves fresh copies of its documents, as a search does, and applies bulk
     actions with their optimistic locking"""
@@ -317,8 +344,9 @@ def test_publications_are_rolled_back_too():
     assert by_id["Werum-PRODUCT_B"]["_source"]["deletion_issue"] == "OMCS-1234"
 
 
-def test_payload_of_deletions_reconciles_the_whole_ticket():
-    """A message carrying a subset of the rows must still see the full ticket"""
+def test_payload_of_deletions_reconciles_the_whole_ticket_when_an_attachment_is_stale():
+    """A message carrying a subset of the rows still sees the full ticket when an
+    attachment is superseded: the rollback needs every row"""
     issue = make_issue(attachment_ids=["11"])
 
     deletions = [
@@ -334,6 +362,8 @@ def test_payload_of_deletions_reconciles_the_whole_ticket():
     # only the surviving row is in the payload
     engine.input_documents = [deletions[1]]
 
+    lookups = spy_lookups(engine)
+
     with patch(
         "maas_cds.engines.reports.product_deletion.CdsDeletionIssue.mget_by_ids",
         return_value=[issue],
@@ -342,9 +372,76 @@ def test_payload_of_deletions_reconciles_the_whole_ticket():
 
     mock_mget.assert_called_once_with(["OMCS-1234"])
 
+    assert lookups == [["PRODUCT_A", "PRODUCT_B"]]
+
     # the row absent from the payload was still reconciled
     rollback = next(action for action in actions if action["_id"] == "PRODUCT_A")
     assert "LTA_Werum_is_deleted" not in rollback["_source"]
+
+
+def test_payload_of_deletions_only_looks_up_its_own_names():
+    """Nothing to roll back: a message of rows only marks its own names, the other
+    rows of the ticket come with their own message"""
+    issue = make_issue(attachment_ids=["10"])
+
+    names = ["PRODUCT_A", "PRODUCT_B", "PRODUCT_C"]
+
+    deletions = [
+        make_deletion(name, attachment_id="10", created=zulu(1)) for name in names
+    ]
+
+    engine = build_engine(deletions, [make_product(name) for name in names])
+
+    lookups = spy_lookups(engine)
+
+    actions = run_deletions(engine, [deletions[1]], [issue])
+
+    assert lookups == [["PRODUCT_B"]]
+
+    assert [action["_id"] for action in actions] == ["PRODUCT_B"]
+
+
+def test_payload_of_deletions_scopes_each_ticket_to_its_own_rows():
+    first = make_issue(key="OMCS-1")
+    second = make_issue(key="OMCS-2", deletion_interfaces=["Exprivia"])
+
+    rows = {
+        "OMCS-1": [
+            make_deletion("PRODUCT_A", jira_issue="OMCS-1"),
+            make_deletion("PRODUCT_B", jira_issue="OMCS-1"),
+        ],
+        "OMCS-2": [
+            make_deletion("PRODUCT_C", jira_issue="OMCS-2"),
+            make_deletion("PRODUCT_D", jira_issue="OMCS-2"),
+        ],
+    }
+
+    engine = build_engine([], [make_product(f"PRODUCT_{name}") for name in "ABCD"])
+    engine.load_deletions = lambda issue: rows[issue.key]
+
+    lookups = spy_lookups(engine)
+
+    run_deletions(engine, [rows["OMCS-1"][0], rows["OMCS-2"][1]], [first, second])
+
+    assert lookups == [["PRODUCT_A"], ["PRODUCT_D"]]
+
+
+def test_payload_of_issues_looks_up_the_whole_ticket():
+    issue = make_issue(attachment_ids=["10"])
+
+    names = ["PRODUCT_A", "PRODUCT_B", "PRODUCT_C"]
+
+    deletions = [
+        make_deletion(name, attachment_id="10", created=zulu(1)) for name in names
+    ]
+
+    engine = build_engine(deletions, [make_product(name) for name in names])
+
+    lookups = spy_lookups(engine)
+
+    run(engine, issue)
+
+    assert lookups == [names]
 
 
 def test_unknown_document_class_is_rejected():

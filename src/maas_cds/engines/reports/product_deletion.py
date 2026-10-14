@@ -1,6 +1,6 @@
 """Deletion consolidation"""
 
-from typing import Generator, List, Set
+from typing import Dict, Generator, List, Optional, Set
 
 from maas_engine.engine.rawdata import DataEngine
 from maas_engine.exceptions import (
@@ -103,9 +103,12 @@ class DeletionConsolidatorEngine(
 
         issues = self.resolve_issues()
 
+        scopes = self.payload_scopes()
+
         for position, issue in enumerate(issues, start=1):
             yield from self.reconcile_issue(
                 issue,
+                scope=None if scopes is None else scopes.get(issue.key, set()),
                 # a document written for the last ticket is not met again
                 remember=position < len(issues),
             )
@@ -113,8 +116,9 @@ class DeletionConsolidatorEngine(
     def resolve_issues(self) -> List[CdsDeletionIssue]:
         """Get the tickets to reconcile, whatever the payload document class.
 
-        Both payload shapes converge here: reconciliation always needs the whole
-        deletion set of a ticket, never the subset carried by the message.
+        Both payload shapes converge here: telling a superseded attachment from
+        the current one needs the whole deletion set of a ticket, never the subset
+        carried by the message.
 
         Returns:
             List[CdsDeletionIssue]: tickets
@@ -146,11 +150,34 @@ class DeletionConsolidatorEngine(
             f"Unexpected input document class for deletion: {document_class}"
         )
 
-    def reconcile_issue(self, issue: CdsDeletionIssue, remember: bool) -> Generator:
+    def payload_scopes(self) -> Optional[Dict[str, Set[str]]]:
+        """Get the names carried by a payload of deletions, per ticket
+
+        Returns:
+            dict: ticket key -> effective product names, None for a payload of
+                tickets, that reconciles every name
+        """
+        if self.payload.document_class != "CdsInterfaceProductDeletion":
+            return None
+
+        scopes = {}
+
+        for deletion in self.input_documents:
+            if deletion.jira_issue and deletion.effective_product_name:
+                scopes.setdefault(deletion.jira_issue, set()).add(
+                    deletion.effective_product_name
+                )
+
+        return scopes
+
+    def reconcile_issue(
+        self, issue: CdsDeletionIssue, scope: Optional[Set[str]], remember: bool
+    ) -> Generator:
         """Decide the fate of every document impacted by a ticket, chunk by chunk
 
         Args:
             issue (CdsDeletionIssue): the deletion ticket
+            scope (set): names of the payload for this ticket, None for all
             remember (bool): record the documents written, for the next tickets
 
         Yields:
@@ -172,6 +199,13 @@ class DeletionConsolidatorEngine(
 
         # only the products dropped from the ticket need a rollback
         stale_names -= current_names
+
+        if scope is not None and not stale_ids:
+            # nothing to roll back: a message of deletions only marks its own
+            # names, the other rows of the ticket come with their own message.
+            # A stale attachment needs the whole ticket, once: its rows are
+            # deleted afterwards
+            current_names &= scope
 
         if not stale_ids:
             self.logger.debug(
