@@ -1,12 +1,14 @@
 """Tests of the deletion consolidation and of its reconciliation with attachments"""
 
 import copy
+import json
 import random
 from unittest.mock import patch
 
 import pytest
 from maas_engine.exceptions import CannotProcessMessageException, HandleMessageException
 from maas_model import MAASMessage
+from opensearchpy.serializer import JSONSerializer
 
 from maas_cds.engines.reports.product_deletion import DeletionConsolidatorEngine
 from maas_cds.model import (
@@ -99,13 +101,32 @@ def spy_lookups(engine):
     return lookups
 
 
+def indexed(document, index=None, identifier=None, seq_no=None):
+    """A document as a search or an mget returns it: its source went through JSON,
+    so the fields the model does not declare, such as the deletion dates of a
+    product, are strings, while the declared dates of a ticket are datetimes"""
+    meta = document.meta
+
+    return document.__class__.from_opensearch(
+        {
+            "_index": index or getattr(meta, "index", None) or "cds-deletion-issue",
+            "_id": identifier or meta.id,
+            "_source": json.loads(JSONSerializer().dumps(document.to_dict())),
+            "_seq_no": seq_no or getattr(meta, "seq_no", None) or 1,
+            "_primary_term": getattr(meta, "primary_term", None) or 1,
+        }
+    )
+
+
 class FakeIndex:
     """Serves fresh copies of its documents, as a search does, and applies bulk
-    actions with their optimistic locking"""
+    actions with their optimistic locking. Documents and tickets are read back as
+    the index returns them, see indexed()."""
 
     def __init__(self, documents):
         self.documents = {
-            (document.meta.index, document.meta.id): document for document in documents
+            (document.meta.index, document.meta.id): indexed(document)
+            for document in documents
         }
 
         self.conflicts = 0
@@ -169,12 +190,12 @@ class FakeIndex:
 
             return False, {"index": details | {"status": 409}}
 
-        updated = current.__class__(**action["_source"])
-        updated.meta.index, updated.meta.id = key
-        updated.meta.seq_no = current.meta.seq_no + 1
-        updated.meta.primary_term = current.meta.primary_term
-
-        self.documents[key] = updated
+        self.documents[key] = indexed(
+            current.__class__(**action["_source"]),
+            index=key[0],
+            identifier=key[1],
+            seq_no=current.meta.seq_no + 1,
+        )
 
         return True, {"index": details | {"status": 200, "result": "updated"}}
 
@@ -184,7 +205,7 @@ class FakeIndex:
 
         payload = MAASMessage(document_class="CdsDeletionIssue")
         engine.payload = payload
-        engine.input_documents = issues
+        engine.input_documents = [indexed(issue) for issue in issues]
 
         with patch("maas_engine.engine.data.parallel_bulk", self.bulk), patch(
             "maas_engine.engine.data.db_connections"
@@ -935,6 +956,51 @@ def test_tickets_on_several_services_of_a_product_complete_it_in_turn(index_clas
     assert product.LTA_Werum_deletion_issue == "OMCS-2"
     assert product.LTA_Exprivia_deletion_issue == "OMCS-3"
     assert product.nb_lta_deleted == 2
+
+
+@pytest.mark.parametrize("index_class", [FakeIndex, EagerIndex])
+@pytest.mark.parametrize("second_type", ["LTA", "DD"])
+def test_document_marked_again_as_read_back_from_the_index_is_unchanged(
+    index_class, second_type
+):
+    """The index returns the deletion dates of a product as strings, the ticket
+    gives a datetime: a product marked again by its ticket must still compare
+    unchanged. Otherwise the first ticket writes it on every run, the second one
+    always leaves it to the retry, and the message is requeued forever."""
+    second = (
+        make_issue(key="OMCS-2", deletion_interfaces=["Exprivia"])
+        if second_type == "LTA"
+        else make_issue(key="OMCS-2", interface_type="DD", deletion_interfaces=["DHUS"])
+    )
+
+    index = index_class(
+        [
+            make_product("PRODUCT_A", dddas_name="PRODUCT_A"),
+            ticket_row("PRODUCT_A", "OMCS-1"),
+            make_deletion(
+                "PRODUCT_A",
+                jira_issue="OMCS-2",
+                interface_type=second_type,
+                report_name=f"OMCS-2_{second_type}_DelList.csv",
+            ),
+        ]
+    )
+
+    assert run_until_acked(index, [make_issue(key="OMCS-1"), second]) == 2
+
+    assert index.conflicts == 0
+
+    product = index.documents[("cds-product-2024-05", "PRODUCT_A")]
+
+    assert product.LTA_Werum_deletion_issue == "OMCS-1"
+
+    if second_type == "LTA":
+        assert product.LTA_Exprivia_deletion_issue == "OMCS-2"
+    else:
+        assert product.DD_DHUS_deletion_issue == "OMCS-2"
+
+    # written once per ticket
+    assert product.meta.seq_no == 3
 
 
 def test_later_tickets_are_read_for_the_names_of_the_chunk_only():

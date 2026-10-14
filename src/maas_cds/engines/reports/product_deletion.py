@@ -1,5 +1,6 @@
 """Deletion consolidation"""
 
+import json
 from typing import Dict, Generator, List, Optional, Sequence, Set, Tuple
 
 from maas_engine.engine.rawdata import DataEngine
@@ -7,6 +8,7 @@ from maas_engine.exceptions import (
     CannotProcessMessageException,
     HandleMessageException,
 )
+from opensearchpy.serializer import JSONSerializer
 
 from maas_cds.engines.reports.deletion_reconciliation import DeletionReconciliationMixin
 from maas_cds.engines.reports.mission_mixin import MissionMixinEngine
@@ -16,6 +18,23 @@ from maas_cds.model import (
     CdsProduct,
     CdsPublication,
 )
+
+
+def indexed_state(document) -> dict:
+    """Get the state of a document as the index returns it
+
+    The fields the model does not declare, such as the deletion dates of a product
+    per service, come back from the index as strings, while a ticket sets them as
+    datetimes: compared as they are, a document marked again by the same ticket
+    would always look changed.
+
+    Args:
+        document (MAASDocument): product or publication
+
+    Returns:
+        dict: the source of the document once serialized
+    """
+    return json.loads(JSONSerializer().dumps(document.to_dict()))
 
 
 class DeletionConsolidatorEngine(
@@ -544,7 +563,7 @@ class DeletionConsolidatorEngine(
                     "max_documents in the engine configuration to process it"
                 )
 
-            decision = self._decisions[key] = (document, document.to_dict())
+            decision = self._decisions[key] = (document, indexed_state(document))
 
         return decision[0]
 
@@ -572,8 +591,9 @@ class DeletionConsolidatorEngine(
         for key, (document, initial_dict) in decisions.items():
             # a plain comparison is required: the union operator used to keep every
             # key of the initial state, which made the check blind to the removal
-            # of a field, hence to a rollback
-            if document.to_dict() == initial_dict:
+            # of a field, hence to a rollback. Both sides are serialized, see
+            # indexed_state()
+            if indexed_state(document) == initial_dict:
                 continue
 
             if key in self._written:
