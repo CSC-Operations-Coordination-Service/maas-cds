@@ -7,10 +7,10 @@ from maas_cds.model.cds_completeness.cds_completeness_splitted import (
     CdsCompletenessSplitted,
 )
 from maas_cds.model.configuration import (
-    MaasConfigCompleteness,
-    MaasConfigDataflow,
-    MaasConfigCompletenessS3,
-    MaasConfigCompletenessS5,
+    OcsConfigCompleteness,
+    OcsConfigDataflow,
+    OcsConfigCompletenessS3,
+    OcsConfigCompletenessS5,
 )
 from maas_engine.engine.rawdata import DataEngine
 from maas_cds.engines.reports.anomaly_impact import AnomalyImpactMixinEngine
@@ -41,10 +41,10 @@ class ComputeCompletenessSplitted(
 
         self.config_manager = MaasConfigManager(
             config_model_class=[
-                MaasConfigDataflow(),
-                MaasConfigCompleteness(),
-                MaasConfigCompletenessS3(),
-                MaasConfigCompletenessS5(),
+                OcsConfigDataflow(),
+                OcsConfigCompleteness(),
+                OcsConfigCompletenessS3(),
+                OcsConfigCompletenessS5(),
             ]
         )
 
@@ -88,7 +88,7 @@ class ComputeCompletenessSplitted(
             else:
                 # Try to find a matching
                 config_completeness = MaasConfigManager().get_config(
-                    f"MaasConfigCompleteness{publication_document.mission}"
+                    f"OcsConfigCompleteness{publication_document.mission}"
                 )[0]
 
                 # Filter config completeness item to find the one that matches product_type and timeliness
@@ -110,7 +110,7 @@ class ComputeCompletenessSplitted(
 
             applicable_configs = [
                 config
-                for config in self.config_manager.get_config("MaasConfigCompleteness")
+                for config in self.config_manager.get_config("OcsConfigCompleteness")
                 if config.mission == publication_document.mission
                 and config.satellite_unit == publication_document.satellite_unit
                 and config.activated

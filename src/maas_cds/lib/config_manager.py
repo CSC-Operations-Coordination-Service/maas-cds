@@ -70,7 +70,7 @@ class MaasConfigManager:
             # Here the loaded function should be handle by the class themself
             document_config = model_class.load()
 
-            # Name is like MaasConfigCompleteness
+            # Name is like OcsConfigCompleteness
             self.CACHE[model_class.__class__.__name__] = document_config
 
     def get_config(self, model_class_name):

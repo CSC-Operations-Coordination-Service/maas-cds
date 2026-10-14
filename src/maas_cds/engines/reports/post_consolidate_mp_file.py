@@ -3,7 +3,7 @@
 import typing
 from datetime import timedelta
 from maas_cds.lib.config_manager import MaasConfigManager
-from maas_cds.model.configuration.maas_config import MaasConfigCompleteness
+from maas_cds.model.configuration.maas_config import OcsConfigCompleteness
 from opensearchpy import Q
 
 from maas_engine.engine.rawdata import DataEngine
@@ -59,7 +59,7 @@ class PostConsolidateMpFileEngine(
         )
         self.tolerance_value = tolerance_value
         self.config_manager = MaasConfigManager(
-            config_model_class=MaasConfigCompleteness()
+            config_model_class=OcsConfigCompleteness()
         )
 
         self.merge_reports = merge_reports

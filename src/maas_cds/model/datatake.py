@@ -553,7 +553,7 @@ class CdsDatatake(AnomalyMixin, generated.CdsDatatake):
     def _dataflow_expected_interfaces(self):
         """Map each product type to the interfaces (DD / LTA) the dataflow expects.
 
-        Reads the ``MaasConfigDataflow`` records for this mission / satellite: a
+        Reads the ``OcsConfigDataflow`` records for this mission / satellite: a
         product type is expected on an interface when its ``services_config`` for
         that interface holds a real service (an item starting with ``C`` or ``P``),
         the same rule used by the splitted completeness.
@@ -563,7 +563,7 @@ class CdsDatatake(AnomalyMixin, generated.CdsDatatake):
                 config is not loaded (callers then fall back to the raw count).
         """
         expected = {}
-        config = MaasConfigManager().get_config("MaasConfigDataflow")
+        config = MaasConfigManager().get_config("OcsConfigDataflow")
         if not config:
             # Degraded mode: every duplicated pair is then counted as expected on
             # every interface. Warn, as nothing on the document tells it apart from

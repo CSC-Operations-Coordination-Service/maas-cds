@@ -9,7 +9,13 @@
         }
     },
     "mappings": {
-        "properties": {},
-        "_meta": {}
+        "properties": {
+            "interface_name": {
+                "type": "keyword"
+            }
+        },
+        "_meta": {
+            "free_form": true
+        }
     }
 }

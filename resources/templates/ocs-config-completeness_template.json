@@ -1,6 +1,6 @@
 {
     "index_patterns": [
-        "maas-config-completeness*"
+        "ocs-config-completeness*"
     ],
     "settings": {
         "index": {

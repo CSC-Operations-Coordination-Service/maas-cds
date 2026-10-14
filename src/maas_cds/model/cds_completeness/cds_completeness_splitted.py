@@ -96,7 +96,7 @@ class CdsCompletenessSplitted(AnomalyMixin, generated.CdsCompletenessSplitted):
 
     def get_expected_value(self):
         config_completeness = MaasConfigManager().get_config(
-            f"MaasConfigCompleteness{self.MISSION}"
+            f"OcsConfigCompleteness{self.MISSION}"
         )[0]
 
         # Filter config completeness item to find the one that matches product_type and timeliness
@@ -147,7 +147,7 @@ class CdsCompletenessSplitted(AnomalyMixin, generated.CdsCompletenessSplitted):
 
         dataflow_product_types = []
 
-        for config in MaasConfigManager().get_config("MaasConfigDataflow")["records"]:
+        for config in MaasConfigManager().get_config("OcsConfigDataflow")["records"]:
             if (
                 config.mission == self.MISSION
                 and self.satellite_unit in config.satellites
@@ -188,7 +188,7 @@ class CdsCompletenessSplitted(AnomalyMixin, generated.CdsCompletenessSplitted):
         # Get all timeliness expected for each product_type
         configs_completeness = (
             MaasConfigManager()
-            .get_config(f"MaasConfigCompleteness{self.MISSION}")[0]
+            .get_config(f"OcsConfigCompleteness{self.MISSION}")[0]
             .records
         )
 
