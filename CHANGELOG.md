@@ -104,6 +104,9 @@
   and it would be lost with the old index.
 - Before TRACK_DELETION runs on 2.16, check that each interface has a single
   `maas-config-collector` document: when it has several, none is used.
+- A snapshot policy that selects `maas-*` does not cover the new `ocs-config-*`
+  indices. Add them to a snapshot policy, and check that a snapshot holds them, before
+  you delete the old indices.
 - Once every engine runs 2.16 and nothing else reads them, delete the seven old indices
   by hand. Their `template_maas-config-<kind>` templates can go with them. Keep
   `maas-config-collector` and its template, which stay in use.
