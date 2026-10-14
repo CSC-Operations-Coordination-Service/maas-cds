@@ -1,7 +1,11 @@
 # Product type update
 
 How to add or change a product type in the dataflow configuration
-(`maas-config-dataflow`) and bring existing data in line with it.
+(`ocs-config-dataflow`) and bring existing data in line with it.
+
+This page applies to maas-cds 2.16 and later. Engines older than 2.16 read
+`maas-config-dataflow` and do not see a change made in `ocs-config-dataflow`
+(see the 2.16.0 upgrade notes in the changelog).
 
 The worked example throughout is the S5P `MPL_SPF___` product
 (`S5P_OPER_MPL_SPF__20260726T000000_20260823T000000_3201.TGZ`): first producer
@@ -9,7 +13,7 @@ FOS, consumed by the Production Service, archived by the DLR and ACRI LTAs.
 
 ## How the dataflow configuration is used
 
-`maas-config-dataflow` holds one document per dataflow version. Each document
+`ocs-config-dataflow` holds one document per dataflow version. Each document
 carries `name`, `version`, `key`, `latest` and a list of `records`, one per
 `(mission, product_type)`:
 
@@ -36,16 +40,16 @@ carries `name`, `version`, `key`, `latest` and a list of `records`, one per
   handling use that rule).
 
 Only the documents with `latest: true` are applied.
-`MaasConfigDataflow.load()` merges the records of **all** latest documents and
+`OcsConfigDataflow.load()` merges the records of **all** latest documents and
 raises `MaasConfigError` when the same `(product_type, mission, product_level)`
 appears twice.
 
 > The product level stored on `cds-product` / `cds-publication` does **not**
-> come from `maas-config-dataflow`. It comes from the legacy `cds-dataflow`
+> come from `ocs-config-dataflow`. It comes from the legacy `cds-dataflow`
 > index, looked up by `mission#product_type`
-> (`BaseProductConsolidatorEngine.get_product_level`). That index is loaded
-> from the dataflow CSV (`Technical-Dashboard/configuration/collector/csv/dataflow/`).
-> A new product type needs a row there too, see step 3.
+> (`BaseProductConsolidatorEngine.get_product_level`). That index is filled by
+> the CSV collector from the dataflow CSV file. A new product type needs a row
+> there too, see step 3.
 
 ## Prerequisites
 
@@ -55,14 +59,14 @@ appears twice.
   before the date), ship the parser fix in maas-cds **before** this procedure.
 - Access to the operator app (Grafana plugin, *Dataflow* page) and to
   OpenSearch Dev Tools.
-- Rights to restart the `maas-engine` service.
+- Rights to restart the engines listed in step 5.
 
 ## Step 1 - Duplicate the applicable dataflow
 
 1. Find the dataflow currently applied:
 
    ```
-   GET maas-config-dataflow/_search
+   GET ocs-config-dataflow/_search
    {
      "query": { "term": { "latest": true } },
      "_source": ["key", "name", "version", "latest"]
@@ -122,7 +126,7 @@ by hand, one right after the other:
 3. Check that only the new document is returned:
 
    ```
-   GET maas-config-dataflow/_search
+   GET ocs-config-dataflow/_search
    {
      "query": { "term": { "latest": true } },
      "_source": ["key", "name", "version"]
@@ -141,32 +145,26 @@ Rollback = the same switch in the other direction, then step 5.
 
 ## Step 5 - Restart the engines to refresh the cache
 
-maas-cds has no refresh event for configuration. Both caches are
-process-wide and filled once, when the engine starts:
+maas-cds has no refresh event for configuration. These caches are
+process-wide and filled once per process, when the engine starts or on the
+first message it handles:
 
 | Cache | Filled from | Engines that use it |
 | --- | --- | --- |
-| `MaasConfigManager.CACHE["MaasConfigDataflow"]` | `maas-config-dataflow` (latest) | `COMPUTE_COMPLETENESS`, `COMPUTE_COMPLETENESS_V2`, `COMPUTE_COMPLETENESS_SPLITTED`, `COMPUTE_MISSING_COMPLETENESS_SPLITTED` |
-| `BaseProductConsolidatorEngine.LEVEL_TYPE_MAPPING` | `cds-dataflow` | `CONSOLIDATE_PRODUCT`, `CONSOLIDATE_LTA_PRODUCT`, `CONSOLIDATE_PUBLICATION`, DD product consolidation |
+| `MaasConfigManager.CACHE["OcsConfigDataflow"]` | `ocs-config-dataflow` (latest) | `COMPUTE_COMPLETENESS`, `COMPUTE_COMPLETENESS_V2`, `COMPUTE_COMPLETENESS_SPLITTED`, `COMPUTE_MISSING_COMPLETENESS_SPLITTED` |
+| `BaseProductConsolidatorEngine.LEVEL_TYPE_MAPPING` | `cds-dataflow` | `CONSOLIDATE_PRODUCT`, `CONSOLIDATE_LTA_PRODUCT`, `CONSOLIDATE_PUBLICATION`, `CONSOLIDATE_DD_PRODUCT` |
 | `CdsS5Completeness._S5_PRODUCTS_TYPES` | `cds-dataflow` (mission `S5`) | `COMPUTE_S5_COMPLETENESS` |
 
-All those engines run in the `maas-engine` service. Restart every replica:
-
-```bash
-# Swarm stack "maas" (csc-ocs-ansible/stacks/apps/maas)
-docker service update --force maas_maas-engine
-docker service ps maas_maas-engine   # all replicas Running, recent start time
-```
-
-On deployments where engines run in separate containers (one engine
-configuration per container), restart each container whose configuration lists
-one of the engines above.
+Restart every engine process whose engine configuration lists one of the
+engines above, all replicas included. A process left running keeps the old
+configuration.
 
 Then check the engine logs:
 
-- `Loading MaasConfigDataflow configuration` without `MaasConfigError`
-- `Loaded dataflow product level-type mapping : <n>`, with `n` one more than
-  before when a product type was added.
+- `Loading OcsConfigDataflow configuration` at start-up, without
+  `MaasConfigError`
+- `Loaded dataflow product level-type mapping : <n>` on the first consolidated
+  message, with `n` one more than before when a product type was added.
 
 ## Step 6 - Migrate historical data
 
@@ -252,6 +250,6 @@ Only `MPL_SPF___` / `AUX` are expected. Any other value (for example
 - [ ] Record added and saved, no duplicated key
 - [ ] `cds-dataflow` CSV row added and ingested
 - [ ] Old latest unticked, new latest ticked, one latest document left
-- [ ] `maas-engine` restarted, logs checked
+- [ ] Engines of step 5 restarted, logs checked
 - [ ] Historical data migrated and checked
 - [ ] Dashboards: product type visible (optional: add it to the mission preset links)
