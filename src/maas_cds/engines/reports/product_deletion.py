@@ -3,6 +3,7 @@
 import json
 from typing import Dict, Generator, List, Optional, Sequence, Set, Tuple
 
+from maas_engine.engine import data as engine_data
 from maas_engine.engine.rawdata import DataEngine
 from maas_engine.exceptions import (
     CannotProcessMessageException,
@@ -113,10 +114,15 @@ class DeletionConsolidatorEngine(
         # tickets of the message, see later_marks()
         self._attachments = {}
 
+        # delete actions of the rows of the superseded attachments, see
+        # delete_stale_rows()
+        self._stale_rows = []
+
     # pylint: enable=R0913
 
     def run(self, routing_key, payload):
-        """Override to requeue the message when a part of it was left to its retry
+        """Override to requeue the message when a part of it was left to its retry,
+        and to drop the stale rows of a message once it is complete
 
         The exception is raised once the bulk is over, so that every other action
         is applied first.
@@ -125,6 +131,8 @@ class DeletionConsolidatorEngine(
         retry finds the documents written by such a run unchanged: with
         send_reports, they are never reported.
         """
+        # the bulk raises when a write failed or conflicted: the stale rows are
+        # then kept for the retry
         reports = list(super().run(routing_key, payload))
 
         if self._truncated:
@@ -139,7 +147,47 @@ class DeletionConsolidatorEngine(
                 "tickets of the message are left to its retry"
             )
 
+        self.delete_stale_rows()
+
         yield from reports
+
+    def delete_stale_rows(self):
+        """Delete the rows of the superseded attachments, in a bulk of their own
+
+        They are what tells the retry of a message that a ticket has products to
+        roll back, and that it is reconciled whole, so they are only dropped once
+        every write of the message is applied: in the bulk of the documents, a
+        delete could land before a rollback that then fails, which would never be
+        done again. A row already gone is no failure.
+
+        Raises:
+            HandleMessageException: some rows are left, to the retry
+        """
+        actions, self._stale_rows = self._stale_rows, []
+
+        if not actions:
+            return
+
+        errors = [
+            info
+            for success, info in engine_data.parallel_bulk(
+                engine_data.db_connections.get_connection(),
+                actions,
+                refresh=True,
+                raise_on_error=False,
+                raise_on_exception=False,
+                request_timeout=self.args.es_timeout if self.args else 120,
+            )
+            if not success and info.get("delete", {}).get("status") != 404
+        ]
+
+        if errors:
+            raise HandleMessageException(
+                f"{self.ENGINE_ID}: {len(errors)} stale deletions not dropped, left "
+                f"to the retry: {errors[:10]}"
+            )
+
+        self.logger.info("%d stale deletions dropped", len(actions))
 
     def action_iterator(self):
         """Mark and unmark the documents impacted by the payload tickets"""
@@ -152,6 +200,8 @@ class DeletionConsolidatorEngine(
         self._truncated = False
 
         self._attachments = {}
+
+        self._stale_rows = []
 
         issues = self.resolve_issues()
 
@@ -273,8 +323,8 @@ class DeletionConsolidatorEngine(
         if scope is not None and not stale_ids:
             # nothing to roll back: a message of deletions only marks its own
             # names, the other rows of the ticket come with their own message.
-            # A stale attachment needs the whole ticket, once: its rows are
-            # deleted afterwards
+            # A stale attachment needs the whole ticket, until the message that
+            # rolls it back is complete and its rows are deleted
             names &= scope
 
         return names
@@ -293,7 +343,8 @@ class DeletionConsolidatorEngine(
             later (list): tickets after this one in the message
 
         Yields:
-            dict: bulk actions, documents first, then stale deletions
+            dict: bulk actions of the documents. The stale deletions are kept for
+                delete_stale_rows()
         """
         deletions = self.load_deletions(issue)
 
@@ -373,28 +424,19 @@ class DeletionConsolidatorEngine(
                 written += 1
                 yield action
 
-        if self._deferred > deferred:
-            # a rollback left to the retry still needs the rows that list it
-            self.logger.info(
-                "[%s] %d documents written, %d left to the retry with the stale "
-                "deletions",
-                issue.key,
-                written,
-                self._deferred - deferred,
-            )
-            return
-
         dropped = 0
 
         for deletion in deletions:
             if getattr(deletion, "attachment_id", None) in stale_ids:
                 dropped += 1
-                yield deletion.to_bulk_action("delete")
+                self._stale_rows.append(deletion.to_bulk_action("delete"))
 
         self.logger.info(
-            "[%s] %d documents written, %d stale deletions dropped",
+            "[%s] %d documents written, %d left to the retry, %d stale deletions "
+            "to drop once the message is complete",
             issue.key,
             written,
+            self._deferred - deferred,
             dropped,
         )
 
@@ -574,10 +616,9 @@ class DeletionConsolidatorEngine(
         A document already written for an earlier ticket of the message is left to
         the retry of the message. It was fetched again, most likely before the bulk
         applied the first write, so a second write would conflict, and bulk chunks
-        run in parallel: either write could be the one lost, with the stale
-        deletions of its ticket applied anyway. The retry reads it with the first
-        write applied, which it then finds unchanged: marking and unmarking give
-        the same result when repeated.
+        run in parallel: either write could be the one lost. The retry reads it
+        with the first write applied, which it then finds unchanged: marking and
+        unmarking give the same result when repeated.
 
         Args:
             issue (CdsDeletionIssue): the deletion ticket

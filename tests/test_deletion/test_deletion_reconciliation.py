@@ -199,18 +199,34 @@ class FakeIndex:
 
         return True, {"index": details | {"status": 200, "result": "updated"}}
 
-    def run(self, issues, **options):
-        """Process a CdsDeletionIssue message with a new engine, as the consumer does"""
+    def run(self, issues, rows=None, **options):
+        """Process a message with a new engine, as the consumer does: a
+        CdsDeletionIssue message of `issues`, or a CdsInterfaceProductDeletion
+        message of the stored `rows` when given, whose tickets are `issues`"""
         engine = self.engine = self.plug(DeletionConsolidatorEngine(**options))
 
-        payload = MAASMessage(document_class="CdsDeletionIssue")
+        issues = {issue.key: indexed(issue) for issue in issues}
+
+        if rows is None:
+            model = CdsDeletionIssue
+            engine.input_documents = list(issues.values())
+        else:
+            model = CdsInterfaceProductDeletion
+            engine.input_documents = [
+                copy.deepcopy(self.documents[(row.meta.index, row.meta.id)])
+                for row in rows
+            ]
+
+        payload = MAASMessage(document_class=model.__name__)
         engine.payload = payload
-        engine.input_documents = [indexed(issue) for issue in issues]
 
         with patch("maas_engine.engine.data.parallel_bulk", self.bulk), patch(
             "maas_engine.engine.data.db_connections"
-        ), patch.object(engine, "get_input_model", return_value=CdsDeletionIssue):
-            return list(engine.run("update.cds-deletion-issue", payload))
+        ), patch.object(engine, "get_input_model", return_value=model), patch(
+            "maas_cds.engines.reports.product_deletion.CdsDeletionIssue.mget_by_ids",
+            side_effect=lambda keys: [issues.get(key) for key in keys],
+        ):
+            return list(engine.run("update.x", payload))
 
 
 class EagerIndex(FakeIndex):
@@ -222,7 +238,7 @@ class EagerIndex(FakeIndex):
             yield self.apply(action)
 
 
-def run_until_acked(index, issues, max_runs=8):
+def run_until_acked(index, issues, max_runs=8, rows=None):
     """Process a message again as long as the consumer requeues it
 
     Returns:
@@ -230,7 +246,7 @@ def run_until_acked(index, issues, max_runs=8):
     """
     for runs in range(1, max_runs + 1):
         try:
-            index.run(issues)
+            index.run(issues, rows=rows)
         except HandleMessageException:
             continue
 
@@ -315,7 +331,9 @@ def test_superseded_attachment_rolls_back_dropped_products():
     products[0].mark_as_deleted(issue, ["Werum"])
     products[1].mark_as_deleted(issue, ["Werum"])
 
-    actions = run(build_engine(deletions, products), issue)
+    engine = build_engine(deletions, products)
+
+    actions = run(engine, issue)
 
     assert_one_action_per_document(actions)
 
@@ -329,9 +347,12 @@ def test_superseded_attachment_rolls_back_dropped_products():
 
     assert by_id["PRODUCT_C"]["_source"]["LTA_Werum_is_deleted"] is True
 
-    # the deletions of the superseded attachment are dropped
-    deleted = [action for action in actions if action.get("_op_type") == "delete"]
-    assert sorted(action["_id"] for action in deleted) == [
+    # the deletions of the superseded attachment are dropped once the bulk of the
+    # documents is applied, see delete_stale_rows()
+    assert not [action for action in actions if action.get("_op_type") == "delete"]
+
+    # pylint: disable=protected-access
+    assert sorted(action["_id"] for action in engine._stale_rows) == [
         "PRODUCT_A-10",
         "PRODUCT_B-10",
     ]
@@ -752,6 +773,9 @@ def test_max_documents_rejects_the_message_and_keeps_the_stale_rows():
 
     assert not [action for action in actions if action["_op_type"] == "delete"]
 
+    # pylint: disable=protected-access
+    assert not engine._stale_rows
+
 
 @pytest.mark.parametrize("index_class", [FakeIndex, EagerIndex])
 def test_document_of_two_tickets_is_written_once_and_completed_by_the_retry(
@@ -1096,6 +1120,143 @@ def test_documents_written_for_the_earlier_tickets_are_bounded(index_class):
         assert product.LTA_Werum_deletion_issue == "OMCS-1"
         assert product.LTA_Exprivia_deletion_issue == "OMCS-2"
         assert product.nb_lta_deleted == 2
+
+
+def failing_once(index_class, failures):
+    """An index whose first write of some documents fails with a status
+
+    Args:
+        index_class (type): FakeIndex or EagerIndex
+        failures (dict): (index, identifier) -> status of its first write
+    """
+
+    class FailingIndex(index_class):
+        """Fails some writes once"""
+
+        def apply(self, action):
+            key = (action["_index"], action["_id"])
+
+            if action["_op_type"] != "delete" and key in failures:
+                details = {"_index": key[0], "_id": key[1]}
+
+                return False, {"index": details | {"status": failures.pop(key)}}
+
+            return super().apply(action)
+
+    return FailingIndex
+
+
+@pytest.mark.parametrize("index_class", [FakeIndex, EagerIndex])
+@pytest.mark.parametrize("status", [409, 429, 503])
+def test_failed_rollback_keeps_the_stale_rows_for_the_retry(index_class, status):
+    """A bulk item can fail: a conflict with another engine, an overloaded node.
+    The rows of the superseded attachment are dropped only once every write is
+    applied, so that the retry still finds the rollback to do."""
+    issue = make_issue(attachment_ids=["11"])
+
+    product_a = make_product("PRODUCT_A")
+    product_a.mark_as_deleted(issue, ["Werum"])
+
+    stale_row = make_deletion("PRODUCT_A", attachment_id="10", created=zulu(1))
+
+    product_key = ("cds-product-2024-05", "PRODUCT_A")
+    stale_key = (stale_row.meta.index, stale_row.meta.id)
+
+    index = failing_once(index_class, {product_key: status})(
+        [
+            product_a,
+            make_product("PRODUCT_C"),
+            stale_row,
+            make_deletion("PRODUCT_C", attachment_id="11", created=zulu(2)),
+        ]
+    )
+
+    with pytest.raises(HandleMessageException):
+        index.run([issue])
+
+    assert index.documents[product_key].LTA_Werum_is_deleted is True
+    assert stale_key in index.documents
+
+    assert index.run([issue]) == []
+
+    assert "LTA_Werum_is_deleted" not in index.documents[product_key].to_dict()
+    assert stale_key not in index.documents
+
+
+@pytest.mark.parametrize("index_class", [FakeIndex, EagerIndex])
+def test_failed_mark_of_a_whole_ticket_reconcile_is_retried(index_class):
+    """A message of rows reconciles the whole ticket when an attachment is stale.
+    A mark of a name outside the payload that fails is retried with the whole
+    ticket: the stale rows that call for it are still there."""
+    issue = make_issue(attachment_ids=["11"])
+
+    product_1 = make_product("PRODUCT_1")
+    product_1.mark_as_deleted(issue, ["Werum"])
+
+    rows = [
+        make_deletion("PRODUCT_1", attachment_id="10", created=zulu(1)),
+        make_deletion("PRODUCT_1", attachment_id="11", created=zulu(2)),
+        make_deletion("PRODUCT_2", attachment_id="11", created=zulu(2)),
+    ]
+
+    product_2 = ("cds-product-2024-05", "PRODUCT_2")
+
+    index = failing_once(index_class, {product_2: 429})(
+        [product_1, make_product("PRODUCT_2")] + rows
+    )
+
+    # the collector sends the row of PRODUCT_1 of the new attachment
+    assert run_until_acked(index, [issue], rows=rows[1:2]) == 2
+
+    assert index.documents[product_2].LTA_Werum_deletion_issue == "OMCS-1234"
+
+    assert (rows[0].meta.index, rows[0].meta.id) not in index.documents
+
+
+@pytest.mark.parametrize("index_class", [FakeIndex, EagerIndex])
+def test_owner_of_a_mark_does_not_depend_on_the_runs_of_a_message(index_class):
+    """OMCS-2 superseded its list, so it is reconciled whole and owns PRODUCT_1,
+    which OMCS-1 lists too. A DD ticket of the same product forces a retry: the
+    stale rows of OMCS-2 are kept until the message is acknowledged, so the retry
+    sees the same tickets and OMCS-2 keeps the mark."""
+    first = make_issue(key="OMCS-1", deletion_interfaces=["Exprivia"])
+    second = make_issue(
+        key="OMCS-2", deletion_interfaces=["Exprivia"], attachment_ids=["11"]
+    )
+    third = make_issue(key="OMCS-3", interface_type="DD", deletion_interfaces=["DHUS"])
+
+    rows = [
+        ticket_row("PRODUCT_1", "OMCS-1", service="Exprivia"),
+        ticket_row("PRODUCT_2", "OMCS-2", "Exprivia", "10", created=zulu(1)),
+        ticket_row("PRODUCT_1", "OMCS-2", "Exprivia", "11", created=zulu(2)),
+        ticket_row("PRODUCT_4", "OMCS-2", "Exprivia", "11", created=zulu(2)),
+        make_deletion(
+            "DPRODUCT_1",
+            jira_issue="OMCS-3",
+            interface_type="DD",
+            report_name="OMCS-3_DD_DHUS_DelList.csv",
+        ),
+    ]
+
+    products = [
+        make_product(name, dddas_name=f"D{name}")
+        for name in ("PRODUCT_1", "PRODUCT_2", "PRODUCT_4")
+    ]
+
+    index = index_class(products + rows)
+
+    runs = run_until_acked(
+        index, [first, second, third], rows=[rows[0], rows[3], rows[4]]
+    )
+
+    assert runs == 2
+
+    product = index.documents[("cds-product-2024-05", "PRODUCT_1")]
+
+    assert product.LTA_Exprivia_deletion_issue == "OMCS-2"
+    assert product.DD_DHUS_deletion_issue == "OMCS-3"
+
+    assert (rows[1].meta.index, rows[1].meta.id) not in index.documents
 
 
 SERVICES = ["Werum", "Exprivia"]
