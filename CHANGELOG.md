@@ -2,6 +2,35 @@
 
 ## Version 2.17.0
 
+### CONSOLIDATE_DELETION
+
+- A ticket is handled chunk by chunk: the engine looks up the products and publications
+  of `terms_chunk_size` names (1024 by default), writes their changes, then moves on to
+  the next names. A big ticket only takes longer.
+- `max_documents` (50000 by default) now limits the documents matched by one chunk,
+  not by the whole message. Above it, the match is pathological: the message is
+  rejected and logged as `NORMAL_REJECTION` instead of being requeued, and the later
+  tickets of the message are dropped with it. The chunks written before stay written,
+  and the rows of a superseded attachment are kept.
+- `max_documents` also limits the documents written for the earlier tickets of a
+  message, whose identifiers the engine keeps until the end of the run. Above it, the
+  rest of the message is left to its retry: the engine requeues it once the bulk is
+  over, and the retry finds the documents already written unchanged.
+- A `CdsInterfaceProductDeletion` message looks up only the names it carries, unless an
+  attachment of the ticket is superseded: the rollback then needs the whole ticket. A
+  `CdsDeletionIssue` message still looks up every name of its tickets.
+- When several tickets of a message list a product, the last one marks it: the deletion
+  issue, date and cause of a service on the product, and of the publication on that
+  service, are the ones of that ticket. A ticket that only rolls the product back does
+  not count. A ticket listed twice in a message is applied once.
+- A product or publication changed by several tickets of a message, on different
+  services or by a rollback, is written once per run: the message is requeued to
+  finish it, and the rows of a superseded attachment are deleted once their rollback
+  is written.
+- With `send_reports` enabled, the products and publications written by a run that
+  ends in a requeue are not reported: the consumer only sends the reports of a message
+  it acknowledges, and the retry finds them unchanged. Reports are off by default.
+
 ### Upgrade
 
 - The `s3p-session` template gains `is_missing`, `l0pp_granules.timeliness`, the

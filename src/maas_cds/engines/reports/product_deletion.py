@@ -101,6 +101,10 @@ class DeletionConsolidatorEngine(
 
         The exception is raised once the bulk is over, so that every other action
         is applied first.
+
+        The consumer only sends the reports of a message it acknowledges, and the
+        retry finds the documents written by such a run unchanged: with
+        send_reports, they are never reported.
         """
         reports = list(super().run(routing_key, payload))
 
