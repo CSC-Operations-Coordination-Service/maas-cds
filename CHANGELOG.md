@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## Version 2.18.0
 
 Requires maas-engine 3.2.0: QUERY_ENGINE re-emits query results under another class and on the raw exchange (ocs-operator replays).
 
