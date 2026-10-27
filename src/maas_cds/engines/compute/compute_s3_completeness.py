@@ -263,9 +263,11 @@ class ComputeS3CompletenessEngine(AnomalyImpactMixinEngine, DataEngine):
 
             compute_keys.append(key)
             considered_products.append(product)
+            # A tagged datatake_id (irregular numbering period) has no orbit to compare
             if (
                 product.product_type
                 == ComputeS3CompletenessEngine.PRODUCT_TYPE_TO_USE_FOR_MISSING_ORBIT_DETECTION
+                and self.ORBIT_ID_STRATEGY.is_orbit_id(product.datatake_id)
             ):
                 self.products_to_consider_for_missing_orbits.append(product)
 
@@ -351,16 +353,19 @@ class ComputeS3CompletenessEngine(AnomalyImpactMixinEngine, DataEngine):
             if response:
                 closest_db = response[0]
 
-            # Keep the closest between local and db
-            if closest_local and closest_db:
-                closest_datatake_id = ComputeS3CompletenessEngine.sort_datatake_id(
-                    closest_local.datatake_id, closest_db.datatake_id
-                )[1]
-            elif closest_local:
-                closest_datatake_id = closest_local.datatake_id
-            elif closest_db:
-                closest_datatake_id = closest_db.datatake_id
-            else:
+            # Keep the closest in time between local and db: the numbering
+            # can not be trusted to order them (irregular numbering periods)
+            candidates = []
+            if closest_local:
+                candidates.append(
+                    (closest_local.sensing_start_date, closest_local.datatake_id)
+                )
+            if closest_db:
+                candidates.append(
+                    (closest_db.observation_time_start, closest_db.datatake_id)
+                )
+
+            if not candidates:
                 self.logger.warning(
                     "Could not find any previous datatake_id for product"
                     " of type %s with datatake id %s. No missing orbit"
@@ -370,8 +375,14 @@ class ComputeS3CompletenessEngine(AnomalyImpactMixinEngine, DataEngine):
                 )
                 continue
 
-            missing_datatake_list = self.generate_datatake_ids_list_between_2_ids(
-                closest_datatake_id, product.datatake_id
+            closest_start, closest_datatake_id = max(candidates)
+
+            missing_datatake_list = self.ORBIT_ID_STRATEGY.missing_ids(
+                closest_datatake_id,
+                closest_start,
+                product.datatake_id,
+                product.sensing_start_date,
+                descending=True,
             )
 
             self.logger.debug(

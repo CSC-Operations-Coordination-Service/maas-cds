@@ -3,6 +3,8 @@
 import logging
 from maas_model import datestr_to_utc_datetime
 
+from maas_cds.lib.orbit_id_strategy import S3DatatakeIdStrategy
+
 LOGGER = logging.getLogger("ParsingNameS3")
 
 # A S3 product type is 11 characters long, its last one tells if the product is a
@@ -109,6 +111,11 @@ def extract_data_from_product_name_s3(product_name):
             #
             data["datatake_id"] = (
                 f"{data['satellite_unit']}-{data['cycle_number']}-{data['relative_orbit_number']}"
+            )
+
+            # an orbit the numbering does not follow is tagged (i.e. commissioning)
+            data["datatake_id"] = S3DatatakeIdStrategy.tag_abnormal(
+                data["datatake_id"], data["start_sensing_time"]
             )
         else:
             LOGGER.debug(

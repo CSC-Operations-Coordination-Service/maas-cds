@@ -4,6 +4,44 @@
 
 Requires maas-engine 3.2.0: QUERY_ENGINE re-emits query results under another class and on the raw exchange (ocs-operator replays).
 
+### S3 missing orbits and the S3C commissioning numbering
+
+- A S3 cycle no longer has a fixed number of orbits (385 until now). Across cycles, the
+  missing orbit detection lists only the orbits of the latest cycle, from `<cycle>-001`:
+  between `S3B-068-380` and `S3B-069-003` only `S3B-069-001` and `S3B-069-002` are
+  missing, the end of cycle 068 is unknown.
+- No missing orbit is generated when the numbering goes backwards while the time goes
+  forward, or when more S3 orbits are missing than the elapsed time can hold (101
+  minutes per orbit). This applies to COMPUTE_S3_COMPLETENESS and to
+  COMPUTE_MISSING_COMPLETENESS_SPLITTED; the S5 datatakes skip the time check.
+- COMPUTE_MISSING_COMPLETENESS_SPLITTED dated the generated orbits in the reverse order:
+  the oldest missing orbit got the most recent estimated dates. They now go back in time
+  from the current orbit.
+- During the S3C commissioning, the numbering went `003-110 → 004-001 … 009-189 → 003-111`,
+  and the nominal numbering reuses those identifiers later. A S3 datatake_id that is not
+  the orbit expected at the product sensing time gets the `-COM` suffix
+  (`S3C-004-001-COM`): its completeness documents never mix with the nominal orbits, and
+  it is kept out of the missing orbit detection. The expected orbit is counted from the
+  reference of the satellite, a nominal datatake and its sensing start, at 385 orbits per
+  27 days, give or take 2 orbits. The references are `ORBIT_REFERENCES` in
+  `S3DatatakeIdStrategy` (`maas_cds/lib/orbit_id_strategy.py`); a satellite without one
+  is never tagged.
+
+### Upgrade
+
+Run `patch_2_18_0` (`--dry-run` first) before the S3C nominal numbering reaches
+`004-001` again. For each satellite with a reference, it tags the abnormal products and
+publications, moves their `cds-s3-completeness` and splitted completeness documents under
+the tagged key, and deletes the completeness documents generated as missing from the
+broken numbering: those not matching their observation time, without products. It scans
+every untagged product and publication of those satellites. S3C is the only satellite with
+a reference (`S3C-003-121`, 2026-10-26T08:32:12Z); its numbering was broken from 2026-09-21
+to 2026-10-20.
+
+Replaying the S3C products of that period re-tags them and builds the tagged completeness,
+but deletes nothing: run the patch anyway, after the replay, to remove the untagged
+leftovers.
+
 ## Version 2.17.0
 
 ### Deletion tickets follow their attachments

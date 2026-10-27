@@ -94,11 +94,13 @@ class ComputeMissingCompletenessSplitted(AnomalyImpactMixinEngine, DataEngine):
                     previous_orbit_document.datatake_id,
                 )
 
-                missing_datatake_id = (
-                    self.target_model.generate_datatake_ids_list_between_2_ids(
-                        previous_orbit_document.datatake_id,
-                        completeness_document.datatake_id,
-                    )
+                # From the most recent orbit: the dates are estimated going back in time
+                missing_datatake_id = self.target_model.ORBIT_ID_STRATEGY.missing_ids(
+                    previous_orbit_document.datatake_id,
+                    previous_orbit_document.observation_time_start,
+                    completeness_document.datatake_id,
+                    completeness_document.observation_time_start,
+                    descending=True,
                 )
 
                 previous_observation_time_start = (

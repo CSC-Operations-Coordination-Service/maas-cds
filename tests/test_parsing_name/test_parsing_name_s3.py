@@ -1,4 +1,8 @@
 from unittest.mock import patch
+import pytest
+import datetime
+
+from maas_cds.lib.orbit_id_strategy import S3DatatakeIdStrategy
 from maas_cds.lib.parsing_name.parsing_name_s3 import extract_data_from_product_name_s3
 from maas_model import datestr_to_utc_datetime
 
@@ -225,3 +229,55 @@ def test_s3_product_name_bug_parsing_litteral_as_int():
 #     )
 
 #     assert result | expected_result == result
+
+
+REFERENCE_START = datestr_to_utc_datetime("2026-03-01T00:00:00.000Z")
+
+NOMINAL_ORBIT = S3DatatakeIdStrategy.NOMINAL_CYCLE_DURATION / 385
+
+
+def s3_name(satellite_unit, start, cycle, orbit):
+    """A TM_0_NAT product name"""
+    stop = start + NOMINAL_ORBIT
+    return (
+        f"{satellite_unit}_TM_0_NAT____{start:%Y%m%dT%H%M%S}_{stop:%Y%m%dT%H%M%S}"
+        f"_{stop:%Y%m%dT%H%M%S}_5974_{cycle}_{orbit}______LN3_O_AL_002.SEN3.zip"
+    )
+
+
+@pytest.mark.parametrize(
+    "product_name, datatake_id",
+    [
+        # nominal, counted from the reference
+        (s3_name("S3C", REFERENCE_START, "003", "111"), "S3C-003-111"),
+        (
+            s3_name("S3C", REFERENCE_START + 300 * NOMINAL_ORBIT, "004", "026"),
+            "S3C-004-026",
+        ),
+        # commissioning: the orbit expected at that time is another one
+        (
+            s3_name("S3C", REFERENCE_START - datetime.timedelta(days=45), "004", "001"),
+            "S3C-004-001-COM",
+        ),
+        (
+            s3_name("S3C", REFERENCE_START - NOMINAL_ORBIT, "009", "189"),
+            "S3C-009-189-COM",
+        ),
+        # no reference for the satellite
+        (
+            s3_name("S3A", REFERENCE_START - datetime.timedelta(days=45), "004", "001"),
+            "S3A-004-001",
+        ),
+    ],
+)
+def test_s3_product_name_abnormal_numbering(product_name, datatake_id):
+    """A datatake_id that is not the orbit expected at its sensing time is tagged,
+    the cycle and relative orbit stay as read"""
+    with patch.dict(
+        S3DatatakeIdStrategy.ORBIT_REFERENCES, {"S3C": ("S3C-003-111", REFERENCE_START)}
+    ):
+        data = extract_data_from_product_name_s3(product_name)
+
+    assert data["datatake_id"] == datatake_id
+    assert data["cycle_number"] == product_name[69:72]
+    assert data["relative_orbit_number"] == product_name[73:76]
