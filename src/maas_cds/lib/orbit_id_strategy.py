@@ -13,6 +13,7 @@ is written once.
 import logging
 import re
 import typing
+from datetime import datetime, timedelta, timezone
 
 __all__ = [
     "OrbitIdStrategy",
@@ -39,6 +40,24 @@ class OrbitIdStrategy:
     # Identifier format, checked with re.search as the historical implementations did
     ID_REGEX_FORMAT = None
 
+    # Duration of an orbit, used to check a gap of identifiers against the time
+    # elapsed between its two ends. None skips that check.
+    ORBIT_DURATION = None
+
+    @classmethod
+    def is_orbit_id(cls, orbit_id: str) -> bool:
+        """Tell if an identifier respects the format of the strategy
+
+        Args:
+            orbit_id (str): the identifier
+
+        Returns:
+            bool: True if the identifier can take part in the orbit arithmetic
+        """
+        return isinstance(orbit_id, str) and bool(
+            re.search(cls.ID_REGEX_FORMAT, orbit_id)
+        )
+
     @classmethod
     def check_ids(cls, *orbit_ids: str):
         """Ensure identifiers respect the format of the strategy
@@ -49,7 +68,7 @@ class OrbitIdStrategy:
         Raises:
             ValueError: if one of the identifiers does not respect the format
         """
-        if not all(re.search(cls.ID_REGEX_FORMAT, orbit_id) for orbit_id in orbit_ids):
+        if not all(cls.is_orbit_id(orbit_id) for orbit_id in orbit_ids):
             raise ValueError("Inputs arguments does not respect the expected format")
 
     @classmethod
@@ -144,6 +163,69 @@ class OrbitIdStrategy:
 
         return orbit_ids
 
+    @classmethod
+    def missing_ids(
+        cls,
+        previous_id: str,
+        previous_start: datetime,
+        current_id: str,
+        current_start: datetime,
+        descending: bool = False,
+    ) -> typing.List[str]:
+        """The identifiers missing between an orbit and the one before it in time
+
+        Unlike :meth:`ids_between`, nothing is listed when the two identifiers
+        can not be trusted to follow each other:
+
+        - one of them does not respect the format, like the tagged identifiers
+          of a period with an irregular numbering;
+        - the numbering goes backwards while the time goes forward;
+        - more identifiers are missing than the elapsed time can hold orbits.
+
+        Args:
+            previous_id (str): identifier of the previous orbit in time
+            previous_start (datetime): start of the previous orbit
+            current_id (str): identifier of the current orbit
+            current_start (datetime): start of the current orbit
+            descending (bool): return the identifiers from the highest orbit to
+                the lowest instead of the natural ascending order
+
+        Returns:
+            typing.List[str]: the missing identifiers
+        """
+        if not (cls.is_orbit_id(previous_id) and cls.is_orbit_id(current_id)):
+            LOGGER.info(
+                "No missing orbit between %s and %s: out of the orbit numbering",
+                previous_id,
+                current_id,
+            )
+            return []
+
+        if cls.rank(previous_id) >= cls.rank(current_id):
+            LOGGER.warning(
+                "No missing orbit between %s and %s: the numbering goes backwards",
+                previous_id,
+                current_id,
+            )
+            return []
+
+        orbit_ids = cls.ids_between(previous_id, current_id, descending=descending)
+
+        if cls.ORBIT_DURATION is not None and orbit_ids:
+            max_missing = round((current_start - previous_start) / cls.ORBIT_DURATION)
+
+            if len(orbit_ids) > max_missing:
+                LOGGER.warning(
+                    "No missing orbit between %s and %s: %s orbits can not fit in %s",
+                    previous_id,
+                    current_id,
+                    len(orbit_ids),
+                    current_start - previous_start,
+                )
+                return []
+
+        return orbit_ids
+
 
 class AbsoluteOrbitIdStrategy(OrbitIdStrategy):
     """Identifiers holding an absolute orbit counter
@@ -189,13 +271,13 @@ class AbsoluteOrbitIdStrategy(OrbitIdStrategy):
 class CycleOrbitIdStrategy(OrbitIdStrategy):
     """Identifiers holding a cycle and a relative orbit: ``S3A-069-007``
 
-    The relative orbit is reset to 1 at the beginning of each cycle.
+    The relative orbit is reset to 1 at the beginning of each cycle. The number
+    of orbits of a cycle is not fixed (commissioning, orbit manoeuvres), so the
+    end of a cycle is never guessed: across cycles, only the orbits of the
+    latest cycle, from its first one, are listed.
     """
 
     SEPARATOR = "-"
-
-    # Number of orbits a cycle holds, the relative orbit ranges from 1 to it
-    ORBITS_PER_CYCLE = 385
 
     CYCLE_WIDTH = 3
 
@@ -221,29 +303,158 @@ class CycleOrbitIdStrategy(OrbitIdStrategy):
         """override"""
         _, cycle, relative_orbit = cls.split_id(orbit_id)
 
-        return cycle * cls.ORBITS_PER_CYCLE + relative_orbit
+        return cycle * 10**cls.ORBIT_WIDTH + relative_orbit
 
     @classmethod
     def next_id(cls, orbit_id: str) -> str:
-        """override"""
+        """override: the next orbit in the same cycle, the end of a cycle is unknown"""
         satellite, cycle, relative_orbit = cls.split_id(orbit_id)
 
-        relative_orbit += 1
+        return cls.build_id(satellite, cycle, relative_orbit + 1)
 
-        if relative_orbit > cls.ORBITS_PER_CYCLE:
-            relative_orbit = 1
-            cycle += 1
+    @classmethod
+    def build_id(cls, satellite: str, cycle: int, relative_orbit: int) -> str:
+        """Build an identifier from its parts
 
+        Args:
+            satellite (str): the satellite
+            cycle (int): the cycle
+            relative_orbit (int): the relative orbit
+
+        Returns:
+            str: the identifier
+        """
         return (
             f"{satellite}{cls.SEPARATOR}{cycle:0{cls.CYCLE_WIDTH}}"
             f"{cls.SEPARATOR}{relative_orbit:0{cls.ORBIT_WIDTH}}"
         )
 
+    @classmethod
+    def ids_between(
+        cls, orbit_id_1: str, orbit_id_2: str, descending: bool = False
+    ) -> typing.List[str]:
+        """override: across cycles, start from the first orbit of the latest cycle"""
+        cls.check_ids(orbit_id_1, orbit_id_2)
+
+        min_id, max_id = cls.sort_ids(orbit_id_1, orbit_id_2)
+
+        _, min_cycle, min_relative_orbit = cls.split_id(min_id)
+        satellite, max_cycle, max_relative_orbit = cls.split_id(max_id)
+
+        if max_cycle == min_cycle:
+            first_relative_orbit = min_relative_orbit + 1
+        else:
+            if max_cycle - min_cycle > 1:
+                LOGGER.warning(
+                    "Cycles skipped between %s and %s, their orbits are unknown",
+                    min_id,
+                    max_id,
+                )
+            first_relative_orbit = 1
+
+        orbit_ids = [
+            cls.build_id(satellite, max_cycle, relative_orbit)
+            for relative_orbit in range(first_relative_orbit, max_relative_orbit)
+        ]
+
+        if descending:
+            orbit_ids.reverse()
+
+        return orbit_ids
+
 
 class S3DatatakeIdStrategy(CycleOrbitIdStrategy):
-    """S3 datatake identifiers: ``S3A-069-007``"""
+    """S3 datatake identifiers: ``S3A-069-007``
 
-    ID_REGEX_FORMAT = r"S3[A-Z]-\d\d\d-\d\d\d"
+    The numbering of a satellite can stop following its orbit, as during the S3C
+    commissioning: 003-110 -> 004-001 ... 009-189 -> 003-111. The nominal
+    numbering then reuses those identifiers later. Such an abnormal identifier is
+    tagged, ``S3C-004-001-COM``: it no longer respects the format and is kept out
+    of the arithmetic, and its completeness never mixes with the nominal orbit.
+    """
+
+    ID_REGEX_FORMAT = r"^S3[A-Z]-\d\d\d-\d\d\d$"
+
+    ORBIT_DURATION = timedelta(minutes=101)
+
+    # Reference of each satellite: a datatake of the nominal numbering and its
+    # start sensing time. The orbit expected at another time is counted from it.
+    # A satellite without reference is never tagged.
+    #   satellite_unit -> (datatake_id, start sensing time)
+    ORBIT_REFERENCES = {
+        # S3C commissioning, numbering broken from 2026-09-21 to 2026-10-20: the
+        # nominal numbering before and after it follows this reference
+        "S3C": ("S3C-003-121", datetime(2026, 10, 26, 8, 32, 12, tzinfo=timezone.utc)),
+    }
+
+    # The nominal orbit repeats its ground track every 27 days, in 385 orbits.
+    # Only used to tell the orbit expected at a time, never to list missing ones.
+    NOMINAL_ORBITS_PER_CYCLE = 385
+
+    NOMINAL_CYCLE_DURATION = timedelta(days=27)
+
+    # A product, as the reference, starts anywhere in its orbit: the expected
+    # orbit is known give or take one
+    ORBIT_TOLERANCE = 2
+
+    ABNORMAL_TAG = "COM"
+
+    @classmethod
+    def orbit_count(cls, datatake_id: str) -> int:
+        """Number of nominal orbits since the first orbit of the first cycle
+
+        Args:
+            datatake_id (str): the identifier
+
+        Returns:
+            int: the orbit count
+        """
+        _, cycle, relative_orbit = cls.split_id(datatake_id)
+
+        return (cycle - 1) * cls.NOMINAL_ORBITS_PER_CYCLE + relative_orbit - 1
+
+    @classmethod
+    def matches_sensing_time(cls, datatake_id: str, start: datetime) -> bool:
+        """Tell if an identifier is the orbit expected at a time by the reference
+
+        Args:
+            datatake_id (str): the identifier
+            start (datetime): start sensing time of the orbit
+
+        Returns:
+            bool: True if it matches, or the satellite has no reference
+        """
+        satellite = cls.split_id(datatake_id)[0]
+
+        if satellite not in cls.ORBIT_REFERENCES:
+            return True
+
+        reference_id, reference_start = cls.ORBIT_REFERENCES[satellite]
+
+        expected_count = cls.orbit_count(reference_id) + round(
+            (start - reference_start)
+            / (cls.NOMINAL_CYCLE_DURATION / cls.NOMINAL_ORBITS_PER_CYCLE)
+        )
+
+        return abs(cls.orbit_count(datatake_id) - expected_count) <= cls.ORBIT_TOLERANCE
+
+    @classmethod
+    def tag_abnormal(cls, datatake_id: str, start: datetime) -> str:
+        """Tag an identifier that is not the orbit expected at its time
+
+        Args:
+            datatake_id (str): the identifier
+            start (datetime): start sensing time of the orbit
+
+        Returns:
+            str: the identifier, tagged if abnormal
+        """
+        if not cls.is_orbit_id(datatake_id) or cls.matches_sensing_time(
+            datatake_id, start
+        ):
+            return datatake_id
+
+        return f"{datatake_id}{cls.SEPARATOR}{cls.ABNORMAL_TAG}"
 
 
 class S5DatatakeIdStrategy(AbsoluteOrbitIdStrategy):
