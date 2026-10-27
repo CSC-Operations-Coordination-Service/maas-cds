@@ -74,6 +74,12 @@ class PatchV2_18_0(MaasMigrator):
                 )
 
                 for document in search.params(ignore=404).scan():
+                    # no orbit to check, i.e. the AUX products, some without name
+                    if not document.name or not S3DatatakeIdStrategy.is_orbit_id(
+                        document.datatake_id
+                    ):
+                        continue
+
                     datatake_id = extract_data_from_product_name_s3(document.name).get(
                         "datatake_id"
                     )

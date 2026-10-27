@@ -78,6 +78,10 @@ def searches():
     documents = {
         CdsProduct: [
             product(CdsProduct, "S3C-004-001", COMMISSIONING, "cds-product-2026-01"),
+            # AUX product, no orbit and, sometimes, no name
+            CdsProduct(
+                datatake_id="______", product_type="SR___ROE_AX", satellite_unit="S3C"
+            ),
             # nominal
             product(
                 CdsProduct,
