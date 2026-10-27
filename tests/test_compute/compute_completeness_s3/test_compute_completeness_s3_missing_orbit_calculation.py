@@ -16,6 +16,14 @@ import maas_cds.model
 LOGGER = logging.getLogger("test_compute_completeness_s3_missing_orbit_calculation")
 
 
+def completeness_doc_of(product):
+    """The completeness document the db holds for a product"""
+    return CdsS3Completeness(
+        datatake_id=product.datatake_id,
+        observation_time_start=product.sensing_start_date,
+    )
+
+
 @pytest.fixture
 def expected_nb_of_completeness_doc_for_one_datake():
     counter = 0
@@ -101,34 +109,28 @@ def test_get_datatake_ids_previous_orbits_logic():
     )
 
     assert ComputeS3CompletenessEngine.generate_datatake_ids_list_between_2_ids(
-        "S3B-069-002", "S3B-068-380"
+        "S3B-069-007", "S3B-069-003"
     ) == [
-        "S3B-069-001",
-        "S3B-068-385",
-        "S3B-068-384",
-        "S3B-068-383",
-        "S3B-068-382",
-        "S3B-068-381",
+        "S3B-069-006",
+        "S3B-069-005",
+        "S3B-069-004",
     ]
+
+    # The length of a cycle is unknown: across cycles, only the orbits of the
+    # latest cycle are listed
+    assert ComputeS3CompletenessEngine.generate_datatake_ids_list_between_2_ids(
+        "S3B-069-002", "S3B-068-380"
+    ) == ["S3B-069-001"]
     assert ComputeS3CompletenessEngine.generate_datatake_ids_list_between_2_ids(
         "S3B-068-380", "S3B-069-002"
-    ) == [
-        "S3B-069-001",
-        "S3B-068-385",
-        "S3B-068-384",
-        "S3B-068-383",
-        "S3B-068-382",
-        "S3B-068-381",
-    ]
+    ) == ["S3B-069-001"]
 
     assert not ComputeS3CompletenessEngine.generate_datatake_ids_list_between_2_ids(
         "S3B-069-001", "S3B-068-385"
     )
-    assert ComputeS3CompletenessEngine.generate_datatake_ids_list_between_2_ids(
+    assert not ComputeS3CompletenessEngine.generate_datatake_ids_list_between_2_ids(
         "S3B-069-001", "S3B-068-384"
-    ) == [
-        "S3B-068-385",
-    ]
+    )
 
     # Check function raise exception with bad datatake_id formats
     with pytest.raises(ValueError):
@@ -190,10 +192,10 @@ def test_missing_orbit_identification_complex_case(
         prod[-1].datatake_id = f"S3B-069-0{i:02d}"
         prod[-1].product_type = engine.PRODUCT_TYPE_TO_USE_FOR_MISSING_ORBIT_DETECTION
         prod[-1].sensing_start_date = datestr_to_utc_datetime(
-            f"2020-01-01T00:00:{i:02d}.000Z"
-        )
-        prod[-1].sensing_end_date = datestr_to_utc_datetime(
-            f"2020-01-01T00:00:{i:02d}.001Z"
+            "2020-01-01T00:00:00.000Z"
+        ) + i * datetime.timedelta(minutes=engine.ORBIT_DURATION_IN_MINUTES)
+        prod[-1].sensing_end_date = prod[-1].sensing_start_date + datetime.timedelta(
+            milliseconds=1
         )
         prod[-1].full_clean()
 
@@ -206,11 +208,11 @@ def test_missing_orbit_identification_complex_case(
     ]
 
     mock_msearch_execute.return_value = [
-        [prod[1]],
-        [prod[6]],
-        [prod[7]],
+        [completeness_doc_of(prod[1])],
+        [completeness_doc_of(prod[6])],
+        [completeness_doc_of(prod[7])],
         [
-            prod[15]
+            completeness_doc_of(prod[15])
         ],  # Only 4 db request because case with successive datatake_id product have been
         # filtered without asking db ( prod[10]/prod[11] )
     ]
@@ -288,13 +290,61 @@ def test_missing_orbit_identification_case_no_orbit_missing(
 
     mock_msearch_execute.return_value = [
         [
-            prod_2,
+            completeness_doc_of(prod_2),
         ]
     ]
 
     engine.products_to_consider_for_missing_orbits = [prod_1]
     result = engine.identify_missing_datatakes_ids()
     assert not result
+
+
+@pytest.mark.parametrize(
+    "previous_datatake_id, previous_orbits_ago, current_datatake_id",
+    [
+        # S3C commissioning: the numbering went back from 009-189 to 003-111
+        ("S3C-009-189", 1, "S3C-003-111"),
+        # the previous orbit belongs to an irregular numbering period
+        ("S3C-009-189-COM", 1, "S3C-003-111"),
+        # 5 orbits missing in the numbering, while only 1 orbit elapsed
+        ("S3C-003-105", 2, "S3C-003-111"),
+    ],
+)
+@patch("opensearchpy.MultiSearch.add")
+@patch("opensearchpy.MultiSearch.execute")
+def test_missing_orbit_identification_untrusted_gap(
+    mock_msearch_execute,
+    mock_msearch_add,
+    product_s3_dict,
+    previous_datatake_id,
+    previous_orbits_ago,
+    current_datatake_id,
+):
+    """No missing orbit is generated from a gap the numbering can not explain"""
+    mock_msearch_add.return_value = MultiSearch()
+
+    ComputeS3CompletenessEngine.MODEL_MODULE = maas_cds.model
+    engine = ComputeS3CompletenessEngine()
+
+    prod = CdsProductS3(**product_s3_dict)
+    prod.datatake_id = current_datatake_id
+    prod.product_type = engine.PRODUCT_TYPE_TO_USE_FOR_MISSING_ORBIT_DETECTION
+    prod.full_clean()
+
+    mock_msearch_execute.return_value = [
+        [
+            CdsS3Completeness(
+                datatake_id=previous_datatake_id,
+                observation_time_start=prod.sensing_start_date
+                - previous_orbits_ago
+                * datetime.timedelta(minutes=engine.ORBIT_DURATION_IN_MINUTES),
+            )
+        ]
+    ]
+
+    engine.products_to_consider_for_missing_orbits = [prod]
+
+    assert not engine.identify_missing_datatakes_ids()
 
 
 @patch(
@@ -353,6 +403,33 @@ def test_add_missing_completeness_documents(mock_getids,expected_nb_of_completen
                             "satellite_unit": "S3B",
                             "timeliness": "AL",
                         }
+
+
+@patch("maas_cds.model.CdsS3Completeness.mget_by_ids")
+def test_completeness_document_loading_tagged_datatake_id(
+    mock_getids, product_s3_dict, expected_nb_of_completeness_doc_for_one_datake
+):
+    """A datatake of an irregular numbering period gets its completeness, but no
+    missing orbit check"""
+    ComputeS3CompletenessEngine.MODEL_MODULE = maas_cds.model
+    engine = ComputeS3CompletenessEngine()
+
+    prod = CdsProductS3(**product_s3_dict)
+    prod.datatake_id = "S3C-004-001-COM"
+    prod.product_type = (
+        ComputeS3CompletenessEngine.PRODUCT_TYPE_TO_USE_FOR_MISSING_ORBIT_DETECTION
+    )
+    prod.timeliness = "AL"
+
+    mock_getids.side_effect = [
+        [None],
+        [[] for _ in range(expected_nb_of_completeness_doc_for_one_datake)],
+    ]
+
+    engine.load_all_completeness_doc([prod])
+
+    assert "S3C-004-001-COM#TM_0_NAT___#AL" in engine.local_cache_completeness
+    assert not engine.products_to_consider_for_missing_orbits
 
 
 @patch("maas_cds.model.CdsS3Completeness.mget_by_ids")
