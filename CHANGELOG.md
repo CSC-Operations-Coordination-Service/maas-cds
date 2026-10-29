@@ -17,12 +17,15 @@
 
 ### Upgrade
 
-- Put the `cds-ai-production-completeness` template and add the field to the mapping
-  of the existing index before starting the engines (`PUT
-  cds-ai-production-completeness/_mapping` with `{"properties": {"absolute_orbit":
-  {"type": "keyword"}}}`): it is a single index, and a field written before that is
-  mapped dynamically as `text`.
-- Existing documents get their orbit when their AI_RAW is next consolidated.
+- Run `patch_2_19_0` (`--dry-run` first) before starting the engines. It puts the
+  `cds-ai-production-completeness` template and adds `absolute_orbit` to the mapping of
+  the existing index, alone: it is a single index, and a field written before that is
+  mapped dynamically as `text`. An index that mapped it otherwise, the engines having
+  run first, is reindexed with the template. The patch then fills `absolute_orbit` on
+  the existing documents from their AI_RAW name (`input_name`); those without one, an
+  AISAUX alone, get it when their AI_RAW arrives.
+- The patch can run again: an index that maps the field already only gets it put
+  again, and only the documents without `absolute_orbit` are updated.
 
 ## Version 2.18.1
 
