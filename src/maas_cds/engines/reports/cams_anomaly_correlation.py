@@ -80,7 +80,8 @@ class AnomalyCorrelationConsolidatorEngine(ReplicatorEngine):
             datatake_id = "".join([char for char in datatake_id if char != " "])
 
             if re.match(r"S\d{1}.-", datatake_id):
-                if re.match(r"S1[A-Z]-\d{1,6}$", datatake_id):
+                # AIS datatake ids have 7 digits (e.g. S1D-5189000)
+                if re.match(r"S1[A-Z]-\d{1,7}$", datatake_id):
                     corrected_datatake_ids.append(datatake_id)
                 elif re.match(r"S2[A-Z]-\d{1,6}-\d{1}", datatake_id):
                     corrected_datatake_ids.append(datatake_id)
