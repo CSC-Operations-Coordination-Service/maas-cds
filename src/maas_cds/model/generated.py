@@ -4,7 +4,7 @@ DA0 classes generated from index templates.
 
 **DO NOT EDIT, ONLY INHERIT !**
 
-Generated date: 2026-10-14T13:17:01.992029+00:00
+Generated date: 2026-10-29T10:49:23.778671+00:00
 
 Generated from:
     - resources/templates/cds-acquisition-pass-status_template.json
@@ -1112,6 +1112,8 @@ class CdsAiProductionCompleteness(MAASDocument):
     @classmethod
     def _matches(cls, hit):
         return hit["_index"].startswith("cds-ai-production-completeness")
+
+    absolute_orbit = Keyword()
 
     completeness = Long()
 

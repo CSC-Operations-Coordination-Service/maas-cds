@@ -2,6 +2,9 @@
 
 from typing import Union
 from maas_cds.lib.hash_utils import get_hash
+from maas_cds.lib.parsing_name.parsing_name_s1 import (
+    extract_absolute_orbit_from_product_name_s1,
+)
 from maas_engine.engine.rawdata import RawDataEngine
 
 from maas_cds.model import CdsAiProductionCompleteness, CdsProductS1
@@ -109,6 +112,14 @@ class ComputeAiRelatedEngine(RawDataEngine):
             completeness_doc.input_name = product_doc.name
             completeness_doc.datatake_id = product_doc.datatake_id
             completeness_doc.timeliness = product_doc.timeliness
+
+            # AI_RAW carries no datatake id in its name and the datatake
+            # matching often fails, but the absolute orbit is always there
+            absolute_orbit = extract_absolute_orbit_from_product_name_s1(
+                product_doc.name
+            )
+            if absolute_orbit is not None:
+                completeness_doc.absolute_orbit = str(absolute_orbit)
 
             if completeness_doc.completeness is None:
                 completeness_doc.completeness = 0
