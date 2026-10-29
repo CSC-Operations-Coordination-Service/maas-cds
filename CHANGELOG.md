@@ -1,5 +1,13 @@
 # Changelog
 
+## Version 2.18.1
+
+### AIS datatakes in the anomaly correlation
+
+- The datatake ids of the impacted observations of an anomaly (GSANOM) are no longer
+  skipped when they come from an AIS format: the S1 datatake ids may now have up to 7
+  digits (`S1D-5189000`) instead of 6.
+
 ## Version 2.18.0
 
 Requires maas-engine 3.2.0: QUERY_ENGINE re-emits query results under another class and on the raw exchange (ocs-operator replays).
