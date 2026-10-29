@@ -14,7 +14,7 @@ from maas_cds.model import (
 )
 from maas_cds import model
 from maas_cds.lib.parsing_name.parsing_name_s1 import (
-    extract_absolute_orbit_from_hktm_product_name_s1,
+    extract_absolute_orbit_from_product_name_s1,
 )
 
 
@@ -157,7 +157,7 @@ class ComputeHktmRelatedEngine(DataEngine):
                 # The expected downlink is uniquely identified by its absolute
                 # orbit, extracted from the HKTM product name. Retrieving by
                 # orbit is more reliable than a time window.
-                absolute_orbit = extract_absolute_orbit_from_hktm_product_name_s1(
+                absolute_orbit = extract_absolute_orbit_from_product_name_s1(
                     cds_product.name
                 )
 

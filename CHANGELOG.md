@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased
+
+### Absolute orbit in the AI completeness
+
+- The `cds-ai-production-completeness` documents gain `absolute_orbit` (keyword), read
+  from the AI_RAW product name: `007290` in
+  `S1C_AI_RAW__0____20260419T201846_20260419T203117_007290________2DFD.SAFE` gives
+  `7290`, without the leading zeros, like the datatake and HKTM orbits. The AI_RAW name
+  carries no datatake id, so `datatake_id` stays empty whenever no AIS datatake matches
+  the sensing; it is still filled when one does.
+- A document created from the AISAUX alone has no `absolute_orbit` until its AI_RAW
+  arrives.
+- `extract_absolute_orbit_from_hktm_product_name_s1` is renamed
+  `extract_absolute_orbit_from_product_name_s1`, as it now serves both product types.
+
+### Upgrade
+
+- Put the `cds-ai-production-completeness` template and add the field to the mapping
+  of the existing index before starting the engines (`PUT
+  cds-ai-production-completeness/_mapping` with `{"properties": {"absolute_orbit":
+  {"type": "keyword"}}}`): it is a single index, and a field written before that is
+  mapped dynamically as `text`.
+- Existing documents get their orbit when their AI_RAW is next consolidated.
+
 ## Version 2.18.1
 
 ### AIS datatakes in the anomaly correlation

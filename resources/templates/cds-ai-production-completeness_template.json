@@ -33,6 +33,9 @@
             "datatake_id": {
                 "type": "keyword"
             },
+            "absolute_orbit": {
+                "type": "keyword"
+            },
             "input_name": {
                 "type": "keyword"
             },
