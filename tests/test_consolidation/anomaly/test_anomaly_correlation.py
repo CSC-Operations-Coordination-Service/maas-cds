@@ -14,6 +14,7 @@ def test_kindly_input_corrector():
         "S1A--516386",
         "\tS1A-516576",
         " S1A-516757",
+        "S1D-5189000",
     ]
 
     corrected_dt_ids = set()
@@ -37,5 +38,6 @@ def test_kindly_input_corrector():
             "S1A-516386",
             "S1A-516576",
             "S1A-516757",
+            "S1D-5189000",
         ]
     )
