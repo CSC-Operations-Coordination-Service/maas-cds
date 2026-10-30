@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## Version 2.19.0
 
 ### Absolute orbit in the AI completeness
 
