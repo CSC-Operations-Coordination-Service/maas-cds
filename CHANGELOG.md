@@ -15,6 +15,20 @@
 - `extract_absolute_orbit_from_hktm_product_name_s1` is renamed
   `extract_absolute_orbit_from_product_name_s1`, as it now serves both product types.
 
+### Archive indices
+
+- The `raw-data-backup` template (alias `raw-data-backup`, pattern `raw-data-backup-*`, one
+  index per year) holds the reports of the archive and of the collectors' backups. Besides
+  the report fields of maas-collector, it maps `origin` (`collector` or `archive`),
+  `backup_name`, `operation_id`, `product_id`, `product_name`, `written_md5` and
+  `catalogue_checksum` as keywords, and `status` is `OK`, `KO`, `REPLACED`, `SKIPPED` or
+  `REQUESTED`.
+- The `raw-data-dm-cdse-product` template (pattern `raw-data-dm-cdse-product-*`) holds the
+  CDSE products the `cdse` collector indexes: identifier, name, size, dates and
+  `origin_checksum_md5`, the checksum the archive compares with the object it wrote.
+- The classes `Backup` and `DmCdseProduct` are generated from them. The `fastapigen`
+  `api` key of the download manager's copies is dropped.
+
 ### Upgrade
 
 - Run `patch_2_19_0` (`--dry-run` first) before starting the engines. It puts the
@@ -26,6 +40,10 @@
   AISAUX alone, get it when their AI_RAW arrives.
 - The patch can run again: an index that maps the field already only gets it put
   again, and only the documents without `absolute_orbit` are updated.
+- Install the two archive templates with
+  `maas_engine.update.migration -i raw-data-backup raw-data-dm-cdse-product` before the
+  first archive report. Check first that no `raw-data-backup-*` index exists: a first
+  report would create it with dynamic mappings, which are kept for good.
 
 ## Version 2.18.1
 

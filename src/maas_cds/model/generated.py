@@ -53,6 +53,7 @@ Generated from:
     - resources/templates/raw-data-aps-quality-info_template.json
     - resources/templates/raw-data-aps-session_template.json
     - resources/templates/raw-data-auxip-product_template.json
+    - resources/templates/raw-data-backup_template.json
     - resources/templates/raw-data-cams-anomaly-correlation_template.json
     - resources/templates/raw-data-cams-cloud-anomaly-correlation_template.json
     - resources/templates/raw-data-cams-cloud-tickets_template.json
@@ -64,6 +65,7 @@ Generated from:
     - resources/templates/raw-data-dd-product_template.json
     - resources/templates/raw-data-ddp-data-available_template.json
     - resources/templates/raw-data-deletion-issue_template.json
+    - resources/templates/raw-data-dm-cdse-product_template.json
     - resources/templates/raw-data-download-volume-count_template.json
     - resources/templates/raw-data-grafana-usage_template.json
     - resources/templates/raw-data-interface-probe_template.json
@@ -109,6 +111,7 @@ __all__ = [
     "ApsSession",
     "ApsSessionQualityInfos",
     "AuxipProduct",
+    "Backup",
     "CamsAnomalyCorrelation",
     "CamsCloudAnomalyCorrelation",
     "CamsCloudTickets",
@@ -160,6 +163,7 @@ __all__ = [
     "DdProduct",
     "DdpDataAvailable",
     "DeletionIssue",
+    "DmCdseProduct",
     "DownloadVolumeCount",
     "GrafanaUsage",
     "InterfaceProbe",
@@ -784,6 +788,119 @@ class AuxipProduct(MAASRawDocument):
     reportFolder = Keyword()
 
     start_date = ZuluDate()
+
+
+class Backup(MAASRawDocument):
+    """
+    Mapping class for index: raw-data-backup
+
+    Generated from: resources/templates/raw-data-backup_template.json
+    """
+
+    class Index:
+        "inner class for DSL"
+
+        name = "raw-data-backup"
+
+    @classmethod
+    def _matches(cls, hit):
+        return hit["_index"].startswith("raw-data-backup")
+
+    _PARTITION_FIELD = "ingestionTime"
+
+    _PARTITION_FIELD_FORMAT = "%Y"
+
+    attempts = Long()
+
+    """Number of transfer attempts made for this destination; 1 when it succeeded first time"""
+
+    backup_name = Keyword()
+
+    """Name of the backup the file was written to"""
+
+    backup_type = Keyword()
+
+    """Backup sink: BackupS3, BackupLocal or BackupSFTP"""
+
+    catalogue_checksum = Keyword()
+
+    """The catalogue's checksum for the product"""
+
+    compressed = Boolean()
+
+    """True when the file was gzipped before transfer"""
+
+    destination = Keyword()
+
+    """S3 bucket, local root directory or SFTP host"""
+
+    destination_path = Keyword()
+
+    """Full path of the file on the destination"""
+
+    details = Text()
+
+    """Error message when status is KO"""
+
+    duration = Float()
+
+    """Transfer duration in seconds, spanning every attempt including the waits between them"""
+
+    end_time = ZuluDate()
+
+    error_type = Keyword()
+
+    """Exception class name when status is KO"""
+
+    filename = Keyword()
+
+    """Name of the file as transferred, ending with .gz when compressed"""
+
+    interface_name = Keyword()
+
+    model_name = Keyword()
+
+    """Name of the model class of the ingested file"""
+
+    operation_id = Keyword()
+
+    """Identifier of the maas-operation that requested the transfer, when there is one"""
+
+    origin = Keyword()
+
+    """Who wrote the report: collector or archive"""
+
+    product_id = Keyword()
+
+    """Identifier of the product in the catalogue"""
+
+    product_name = Keyword()
+
+    """Name of the product in the catalogue"""
+
+    reportFolder = Keyword()
+
+    size_bytes = Long()
+
+    """Size of the transferred file in bytes"""
+
+    source_filename = Keyword()
+
+    """Name of the ingested file, before any compression"""
+
+    source_path = Keyword()
+
+    """Local path of the file actually transferred"""
+
+    start_time = ZuluDate()
+
+    status = Keyword()
+
+    """OK, KO, REPLACED, SKIPPED or REQUESTED"""
+
+    written_md5 = Keyword()
+
+    """MD5 of the object written"""
 
 
 class CamsAnomalyCorrelation(MAASRawDocument):
@@ -3353,6 +3470,55 @@ class DeletionIssue(MAASRawDocument):
     satellite = Keyword()
 
     status = Keyword()
+
+
+class DmCdseProduct(MAASRawDocument):
+    """
+    Mapping class for index: raw-data-dm-cdse-product
+
+    Generated from: resources/templates/raw-data-dm-cdse-product_template.json
+    """
+
+    class Index:
+        "inner class for DSL"
+
+        name = "raw-data-dm-cdse-product"
+
+    @classmethod
+    def _matches(cls, hit):
+        return hit["_index"].startswith("raw-data-dm-cdse-product")
+
+    _PARTITION_FIELD = "ingestionTime"
+
+    _PARTITION_FIELD_FORMAT = "%Y"
+
+    content_length = Long()
+
+    """Product size in bytes"""
+
+    end_date = ZuluDate()
+
+    interface_name = Keyword()
+
+    modification_date = ZuluDate()
+
+    origin_checksum_md5 = Keyword()
+
+    origin_date = ZuluDate()
+
+    product_id = Keyword()
+
+    """CDSE OData entity identifier (UUID)"""
+
+    product_name = Keyword()
+
+    production_service_name = Keyword()
+
+    production_service_type = Keyword()
+
+    publication_date = ZuluDate()
+
+    start_date = ZuluDate()
 
 
 class DownloadVolumeCount(MAASRawDocument):

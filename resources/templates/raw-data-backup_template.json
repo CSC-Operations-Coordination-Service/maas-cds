@@ -1,0 +1,130 @@
+{
+    "aliases": {
+        "raw-data-backup": {}
+    },
+    "index_patterns": [
+        "raw-data-backup-*"
+    ],
+    "settings": {
+        "index": {
+            "number_of_shards": 3,
+            "number_of_replicas": 1
+        }
+    },
+    "mappings": {
+        "_meta": {
+            "partition_field": "ingestionTime",
+            "partition_format": "%Y"
+        },
+        "properties": {
+            "ingestionTime": {
+                "type": "date",
+                "format": "date_time",
+                "locale": "utc"
+            },
+            "reportName": {
+                "type": "keyword"
+            },
+            "reportFolder": {
+                "type": "keyword"
+            },
+            "filename": {
+                "type": "keyword",
+                "description": "Name of the file as transferred, ending with .gz when compressed"
+            },
+            "source_filename": {
+                "type": "keyword",
+                "description": "Name of the ingested file, before any compression"
+            },
+            "source_path": {
+                "type": "keyword",
+                "description": "Local path of the file actually transferred"
+            },
+            "size_bytes": {
+                "type": "long",
+                "description": "Size of the transferred file in bytes"
+            },
+            "compressed": {
+                "type": "boolean",
+                "description": "True when the file was gzipped before transfer"
+            },
+            "backup_type": {
+                "type": "keyword",
+                "description": "Backup sink: BackupS3, BackupLocal or BackupSFTP"
+            },
+            "destination": {
+                "type": "keyword",
+                "description": "S3 bucket, local root directory or SFTP host"
+            },
+            "destination_path": {
+                "type": "keyword",
+                "description": "Full path of the file on the destination"
+            },
+            "interface_name": {
+                "type": "keyword"
+            },
+            "model_name": {
+                "type": "keyword",
+                "description": "Name of the model class of the ingested file"
+            },
+            "start_time": {
+                "type": "date",
+                "format": "date_time",
+                "locale": "utc"
+            },
+            "end_time": {
+                "type": "date",
+                "format": "date_time",
+                "locale": "utc"
+            },
+            "duration": {
+                "type": "float",
+                "description": "Transfer duration in seconds, spanning every attempt including the waits between them"
+            },
+            "attempts": {
+                "type": "long",
+                "description": "Number of transfer attempts made for this destination; 1 when it succeeded first time"
+            },
+            "status": {
+                "type": "keyword",
+                "description": "OK, KO, REPLACED, SKIPPED or REQUESTED"
+            },
+            "error_type": {
+                "type": "keyword",
+                "description": "Exception class name when status is KO"
+            },
+            "details": {
+                "type": "text",
+                "description": "Error message when status is KO"
+            },
+            "origin": {
+                "type": "keyword",
+                "description": "Who wrote the report: collector or archive"
+            },
+            "backup_name": {
+                "type": "keyword",
+                "description": "Name of the backup the file was written to"
+            },
+            "operation_id": {
+                "type": "keyword",
+                "description": "Identifier of the maas-operation that requested the transfer, when there is one"
+            },
+            "product_id": {
+                "type": "keyword",
+                "description": "Identifier of the product in the catalogue"
+            },
+            "product_name": {
+                "type": "keyword",
+                "description": "Name of the product in the catalogue"
+            },
+            "written_md5": {
+                "type": "keyword",
+                "description": "MD5 of the object written"
+            },
+            "catalogue_checksum": {
+                "type": "keyword",
+                "description": "The catalogue's checksum for the product"
+            }
+        }
+    }
+}
