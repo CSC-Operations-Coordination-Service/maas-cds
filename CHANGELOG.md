@@ -1,5 +1,50 @@
 # Changelog
 
+## Version 2.19.0
+
+### Absolute orbit in the AI completeness
+
+- The `cds-ai-production-completeness` documents gain `absolute_orbit` (keyword), read
+  from the AI_RAW product name: `007290` in
+  `S1C_AI_RAW__0____20260419T201846_20260419T203117_007290________2DFD.SAFE` gives
+  `7290`, without the leading zeros, like the datatake and HKTM orbits. The AI_RAW name
+  carries no datatake id, so `datatake_id` stays empty whenever no AIS datatake matches
+  the sensing; it is still filled when one does.
+- A document created from the AISAUX alone has no `absolute_orbit` until its AI_RAW
+  arrives.
+- `extract_absolute_orbit_from_hktm_product_name_s1` is renamed
+  `extract_absolute_orbit_from_product_name_s1`, as it now serves both product types.
+
+### Archive indices
+
+- The `raw-data-backup` template (alias `raw-data-backup`, pattern `raw-data-backup-*`, one
+  index per year) holds the reports of the archive and of the collectors' backups. Besides
+  the report fields of maas-collector, it maps `origin` (`collector` or `archive`),
+  `backup_name`, `operation_id`, `product_id`, `product_name`, `written_md5` and
+  `catalogue_checksum` as keywords, and `status` is `OK`, `KO`, `REPLACED`, `SKIPPED` or
+  `REQUESTED`.
+- The `raw-data-dm-cdse-product` template (pattern `raw-data-dm-cdse-product-*`) holds the
+  CDSE products the `cdse` collector indexes: identifier, name, size, dates and
+  `origin_checksum_md5`, the checksum the archive compares with the object it wrote.
+- The classes `Backup` and `DmCdseProduct` are generated from them. The `fastapigen`
+  `api` key of the download manager's copies is dropped.
+
+### Upgrade
+
+- Run `patch_2_19_0` (`--dry-run` first) before starting the engines. It puts the
+  `cds-ai-production-completeness` template and adds `absolute_orbit` to the mapping of
+  the existing index, alone: it is a single index, and a field written before that is
+  mapped dynamically as `text`. An index that mapped it otherwise, the engines having
+  run first, is reindexed with the template. The patch then fills `absolute_orbit` on
+  the existing documents from their AI_RAW name (`input_name`); those without one, an
+  AISAUX alone, get it when their AI_RAW arrives.
+- The patch can run again: an index that maps the field already only gets it put
+  again, and only the documents without `absolute_orbit` are updated.
+- Install the two archive templates with
+  `maas_engine.update.migration -i raw-data-backup raw-data-dm-cdse-product` before the
+  first archive report. Check first that no `raw-data-backup-*` index exists: a first
+  report would create it with dynamic mappings, which are kept for good.
+
 ## Version 2.18.1
 
 ### AIS datatakes in the anomaly correlation

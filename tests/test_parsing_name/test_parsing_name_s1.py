@@ -1,7 +1,7 @@
 import pytest
 
 from maas_cds.lib.parsing_name.parsing_name_s1 import (
-    extract_absolute_orbit_from_hktm_product_name_s1,
+    extract_absolute_orbit_from_product_name_s1,
     extract_data_from_product_name_s1,
 )
 from maas_model import datestr_to_utc_datetime
@@ -511,12 +511,14 @@ def test_s1_aux_scs(product_name, satellite_unit):
             "S1A_HK_RAW__0____20240814T210951_20240814T210952_055214________A016",
             55214,
         ),
+        # AIS (AI_RAW) products follow the same naming, no datatake id
+        (
+            "S1C_AI_RAW__0____20260419T201846_20260419T203117_007290________2DFD.SAFE",
+            7290,
+        ),
         # No orbit at that position (e.g. mission plan report)
         ("S1A_MP_HKTM_MTL_20230905T174207_20230917T010101.csv", None),
     ],
 )
-def test_extract_absolute_orbit_from_hktm_product_name_s1(product_name, expected_orbit):
-    assert (
-        extract_absolute_orbit_from_hktm_product_name_s1(product_name)
-        == expected_orbit
-    )
+def test_extract_absolute_orbit_from_product_name_s1(product_name, expected_orbit):
+    assert extract_absolute_orbit_from_product_name_s1(product_name) == expected_orbit
