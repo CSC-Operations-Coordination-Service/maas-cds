@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## Version 2.20.0
 
 ### Engine configuration in OpenSearch
 
