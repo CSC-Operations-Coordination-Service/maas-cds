@@ -1,5 +1,16 @@
 # Changelog
 
+## Version 2.20.0
+
+### Engine configuration in OpenSearch
+
+- Requires maas-engine 3.3.0 (maas-model 3.2.0): the engines can load their configuration
+  from the `maas-engine-config` index (`CONFIG_BACKEND=opensearch`, `CONFIG_SERVICE`) and
+  write their entry of `maas-engine-catalogue`. `file` stays the default.
+- A `QUERY_ENGINE` service must declare `collect-exchange` in its `amqp` list to replay raw
+  data, and set `output_routing_key` whenever it sets `output_document_class`.
+- Rollout: the engines run this release before any producer sends `output_document_class`.
+
 ## Version 2.19.0
 
 ### Absolute orbit in the AI completeness
