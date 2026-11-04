@@ -24,6 +24,14 @@ class CdsProductS2(CdsProduct):
 
     PRODUCT_TYPES_WITH_TILES = ("MSI_L1C_DS", "MSI_L2A_DS")
 
+    # Not saved: set when the datastrip leaves its previous datatake, so that the
+    # previous datatake is computed again
+    detached_datatake_id = None
+
+    def is_datastrip(self):
+        """Datastrips are attached by sensing, the others by product_group_id"""
+        return self.product_type is not None and self.product_type[-2:] == "DS"
+
     def get_datatake_id(self):
         """Return the associate datatake id of the product
 
@@ -40,6 +48,83 @@ class CdsProductS2(CdsProduct):
             else None
         )
 
+    def get_detached_compute_key(self):
+        """Compute key of the datatake this datastrip has just left, if any"""
+        if self.detached_datatake_id is None:
+            return None
+
+        return (f"{self.satellite_unit}-{self.detached_datatake_id}", self.product_type)
+
+    def search_datastrip_datatakes(self):
+        """Search the datatakes covering the datastrip sensing, best match first
+
+        Returns:
+            list(CdsDatatake): the matching datatakes
+        """
+        datatake_document_that_match = find_datatake_from_sensing(
+            start_date=self.sensing_start_date,
+            end_date=self.sensing_end_date,
+            mission=self.mission,
+            satellite=self.satellite_unit,
+        )
+
+        # `find_datatake_from_sensing` already ranks the candidates by the
+        # distance of the product middle to the datatake window (0 when the
+        # middle falls inside the window) and applies the S2C +30s shift
+        # consistently. We must NOT re-sort here with a divergent heuristic /
+        # shift, otherwise a product whose middle sits inside a long datatake
+        # gets stolen by an adjacent datatake whose edge happens to be closer.
+        # We only keep the duration guard, which preserves the incoming order.
+        product_duration = (
+            self.sensing_end_date - self.sensing_start_date
+        ).total_seconds()
+
+        # Filter out datatakes with duration lower than product duration (tolerance of 6 sec)
+        return [
+            dt
+            for dt in datatake_document_that_match
+            if (dt.observation_time_stop - dt.observation_time_start).total_seconds()
+            >= (product_duration - 6)
+        ]
+
+    def check_datatake_id(self):
+        """Move an attached datastrip when its datatake does not cover it anymore
+
+        The datatake of a datastrip is chosen once by sensing, but the mission
+        planning can change afterwards: the datastrip then stays on a datatake
+        that does not match its sensing (and drags its product group with it).
+
+        The datastrip only moves when its datatake is not a candidate anymore, so
+        that two candidates returned in any order never make it switch back and
+        forth. When no datatake matches at all it is left untouched.
+        """
+        if not self.is_datastrip() or self.datatake_id_is_missing():
+            return
+
+        datatake_document_that_match = self.search_datastrip_datatakes()
+
+        if not datatake_document_that_match:
+            return
+
+        if self.datatake_id in [dt.datatake_id for dt in datatake_document_that_match]:
+            return
+
+        new_datatake_id = datatake_document_that_match[0].datatake_id
+
+        LOGGER.info(
+            "[%s] - Datastrip sensing is not covered by datatake %s anymore,"
+            " moved to datatake %s",
+            self.key,
+            self.datatake_id,
+            new_datatake_id,
+        )
+
+        self.detached_datatake_id = self.datatake_id
+        self.datatake_id = new_datatake_id
+        setattr(
+            self, "nb_datatake_document_that_match", len(datatake_document_that_match)
+        )
+
     def find_datatake_id(self):
         """Find datatake id associate to the product
 
@@ -54,7 +139,7 @@ class CdsProductS2(CdsProduct):
 
         datatake_document_that_match = []
 
-        if self.product_type[-2:] != "DS":
+        if not self.is_datastrip():
             datatake_document_that_match = find_datatake_from_product_group_id(
                 mission=self.mission,
                 satellite=self.satellite_unit,
@@ -62,35 +147,8 @@ class CdsProductS2(CdsProduct):
             )
 
         #! For GR and TL/TC we need to be careful of MP shift and only trust product_group_id
-        if len(datatake_document_that_match) == 0 and self.product_type[-2:] == "DS":
-
-            datatake_document_that_match = find_datatake_from_sensing(
-                start_date=self.sensing_start_date,
-                end_date=self.sensing_end_date,
-                mission=self.mission,
-                satellite=self.satellite_unit,
-            )
-
-            # `find_datatake_from_sensing` already ranks the candidates by the
-            # distance of the product middle to the datatake window (0 when the
-            # middle falls inside the window) and applies the S2C +30s shift
-            # consistently. We must NOT re-sort here with a divergent heuristic /
-            # shift, otherwise a product whose middle sits inside a long datatake
-            # gets stolen by an adjacent datatake whose edge happens to be closer.
-            # We only keep the duration guard, which preserves the incoming order.
-            product_duration = (
-                self.sensing_end_date - self.sensing_start_date
-            ).total_seconds()
-
-            # Filter out datatakes with duration lower than product duration (tolerance of 6 sec)
-            datatake_document_that_match = [
-                dt
-                for dt in datatake_document_that_match
-                if (
-                    dt.observation_time_stop - dt.observation_time_start
-                ).total_seconds()
-                >= (product_duration - 6)
-            ]
+        if len(datatake_document_that_match) == 0 and self.is_datastrip():
+            datatake_document_that_match = self.search_datastrip_datatakes()
 
         nb_datatake_document_that_match = len(datatake_document_that_match)
 
