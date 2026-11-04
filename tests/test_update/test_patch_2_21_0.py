@@ -26,6 +26,7 @@ class FakeSearch:
 
     def __init__(self, documents):
         self.documents = documents
+        self.search_params = {}
 
     def filter(self, *args, **kwargs):
         if args and args[0] == "terms" and "datatake_id" in kwargs:
@@ -42,6 +43,7 @@ class FakeSearch:
         return self
 
     def params(self, **kwargs):
+        self.search_params.update(kwargs)
         return self
 
     def source(self, *args, **kwargs):
@@ -214,27 +216,50 @@ def test_only_the_changed_datatakes_are_written(datatake_11224_4, datatake_11224
     other = build_datatake(
         "11224-6", "2026-10-29T21:31:00.000Z", "2026-10-29T21:31:30.000Z"
     )
+    computed = []
 
     def compute_completeness(datatake):
+        computed.append(datatake.datatake_id)
         if datatake.datatake_id == "11224-5":
             datatake.final_completeness_status = "Complete"
 
+    search = FakeSearch([datatake_11224_4, datatake_11224_5, other])
     patch_ = migrator()
-    patch_.datatakes_to_compute = {"11224-4", "11224-5"}
 
     with (
-        patch.object(
-            CdsDatatakeS2,
-            "search",
-            return_value=FakeSearch([datatake_11224_4, datatake_11224_5, other]),
-        ),
+        patch.object(CdsDatatakeS2, "search", return_value=search),
         patch.object(CdsDatatakeS2, "load_data_before_compute", return_value=iter([])),
         patch.object(CdsDatatakeS2, "compute_completeness", compute_completeness),
     ):
         actions = list(patch_.datatake_iterator())
 
+    # all the datatakes of the period: a stopped run gained nothing in this one
+    assert computed == ["11224-4", "11224-5", "11224-6"]
+
     assert [a["_id"] for a in actions] == ["S2C-11224-5"]
     assert actions[0]["_source"]["final_completeness_status"] == "Complete"
+
+    # a page is computed before its shard contexts expire
+    assert search.search_params["scroll"] == "1h"
+    assert search.search_params["size"] == 100
+
+
+def test_a_failed_action_does_not_stop_the_patch(caplog):
+    conflict = {"index": {"_id": "S2C-11224-5", "status": 409}}
+    patch_ = migrator()
+
+    with (
+        patch(
+            "maas_cds.update.patch_2_21_0.parallel_bulk",
+            return_value=[(True, {}), (False, conflict)],
+        ) as bulk,
+        patch("maas_cds.update.patch_2_21_0.db_connections.get_connection"),
+        caplog.at_level("ERROR"),
+    ):
+        patch_.bulk_exec(iter([]))
+
+    assert bulk.call_args.kwargs["raise_on_error"] is False
+    assert caplog.messages == [str(conflict)]
 
 
 @pytest.mark.parametrize(

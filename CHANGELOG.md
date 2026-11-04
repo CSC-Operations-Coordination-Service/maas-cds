@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased
+
+### patch_2_21_0 on the whole period
+
+The 2.21.0 patch stopped in production after its datastrips and 1,529 granules and
+tiles (`ScanError: Scroll request has only succeeded on 1 (+0 skipped) shards out of
+3`): a page of 1,000 datatakes, re-attached one by one, outlived the 5 min scroll of
+the scan. The dry runs, on fewer than 1,000 datatakes, never fetched a second page.
+
+- The scans of the patch keep their scroll 1 h, and the datatakes come by pages of 100.
+- All the S2C datatakes of the period are computed again, not only the ones that gained
+  or lost a product in the run: the products a stopped run re-attached were on their
+  datatake for the next run, which left 34 datatakes uncomputed. Only the changed ones
+  are written.
+- A failed action, such as a version conflict with an engine writing the same document,
+  is logged and the patch goes on.
+- The OpenSearch request log stays at WARNING with `-v`.
+
+### Upgrade
+
+- Run `patch_2_21_0` from the 2.21.1 image; the engines stay on 2.21.0. It can run on
+  the period of a stopped 2.21.0 patch.
+
 ## Version 2.21.0
 
 ### S2C datatakes and the mission planning shift
