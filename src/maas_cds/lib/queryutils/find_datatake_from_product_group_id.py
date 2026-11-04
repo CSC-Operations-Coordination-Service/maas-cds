@@ -4,6 +4,10 @@ import datetime
 import logging
 import typing
 
+from maas_cds.lib.queryutils.find_datatake_from_sensing import (
+    S2C_MP_SHIFT_SECONDS,
+    sort_datatakes_by_distance,
+)
 from maas_cds.model.datatake import CdsDatatake
 
 __all__ = ["find_datatake_from_product_group_id"]
@@ -36,53 +40,96 @@ def find_datatake_from_product_group_id(
         )
         return []
 
+    # The product group date is in UTC
+    product_group_date = product_id_data["date"].replace(tzinfo=datetime.UTC)
+
     # nominal use for search datake with product date information expected one datatake only
 
-    if satellite == "S2C":
-        # S2C datatake observation times carry a ~30s MP shift compared to the
-        # product naming date, which makes the observation-time window match
-        # attach GR / TL / TC products to the previous datatake. Instead, rely on
-        # the exact product_group_id already registered on the datatake by the DS
-        # path (datatake.product_group_ids): only the right datatake holds it.
-        search_request = (
+    if satellite != "S2C":
+        datatake_documents = search_datatakes_around_date(
+            mission,
+            satellite,
+            product_id_data["absolute_orbit"],
+            product_group_date,
+        )
+
+    else:
+        # Rely first on the exact product_group_id already registered on the
+        # datatake by the DS path (datatake.product_group_ids)
+        datatake_documents = list(
             CdsDatatake.search()
             .filter("term", mission=mission)
             .filter("term", satellite_unit=satellite)
             .filter("term", product_group_ids=product_group_id)
             .params(ignore=404)
-        )
-    else:
-        search_request = (
-            CdsDatatake.search()
-            .filter("term", mission=mission)
-            .filter("term", satellite_unit=satellite)
-            .filter("term", absolute_orbit=product_id_data["absolute_orbit"])
-            .filter(
-                "range",
-                observation_time_start={
-                    "lte": product_id_data["date"] + datetime.timedelta(seconds=20)
-                },
-            )
-            .filter(
-                "range",
-                observation_time_stop={
-                    "gte": product_id_data["date"] - datetime.timedelta(seconds=20)
-                },
-            )
-            .params(ignore=404)
+            .execute()
         )
 
-    res = search_request.execute()
+        if len(datatake_documents) > 1:
+            # A datatake can still hold the product_group_id of a datastrip that
+            # moved to its neighbour: prefer the one covering the product group date
+            LOGGER.warning(
+                "%s datatakes hold product_group_id %s, keeping the closest in time",
+                len(datatake_documents),
+                product_group_id,
+            )
 
-    if not res:
+        elif not datatake_documents:
+            # The L0 granules come with their datastrip, before any datatake holds
+            # their group: match the product group date like the other units,
+            # but with the ~30s MP shift of the S2C observation times
+            datatake_documents = search_datatakes_around_date(
+                mission,
+                satellite,
+                product_id_data["absolute_orbit"],
+                product_group_date + datetime.timedelta(seconds=S2C_MP_SHIFT_SECONDS),
+            )
+
+        sort_datatakes_by_distance(
+            datatake_documents, satellite, product_group_date.timestamp()
+        )
+
+    if not datatake_documents:
         LOGGER.debug(
             "No datatake found yet for %s: which contain product_group_id : %s",
             satellite,
             product_group_id,
         )
-        return []
 
-    return list(res)
+    return datatake_documents
+
+
+def search_datatakes_around_date(
+    mission: str, satellite: str, absolute_orbit: str, date: datetime.datetime
+) -> typing.List[CdsDatatake]:
+    """Search the datatakes of an orbit observing around a date (20s tolerance)
+
+    Args:
+        mission (str): the mission of the searched datatake
+        satellite (str): the satellite of the searched datatake
+        absolute_orbit (str): the absolute orbit of the searched datatake
+        date (datetime): the date the datatake observation must cover
+
+    Returns:
+        list(CdsDatatake): the matching datatakes
+    """
+    search_request = (
+        CdsDatatake.search()
+        .filter("term", mission=mission)
+        .filter("term", satellite_unit=satellite)
+        .filter("term", absolute_orbit=absolute_orbit)
+        .filter(
+            "range",
+            observation_time_start={"lte": date + datetime.timedelta(seconds=20)},
+        )
+        .filter(
+            "range",
+            observation_time_stop={"gte": date - datetime.timedelta(seconds=20)},
+        )
+        .params(ignore=404)
+    )
+
+    return list(search_request.execute())
 
 
 def extract_data_from_product_id(

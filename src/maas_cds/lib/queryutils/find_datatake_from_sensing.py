@@ -7,9 +7,47 @@ from opensearchpy import Q
 
 from maas_cds.model.datatake import CdsDatatake
 
-__all__ = ["find_datatake_from_sensing"]
+__all__ = ["find_datatake_from_sensing", "sort_datatakes_by_distance"]
 
 LOGGER = logging.getLogger("QueryUtils")
+
+# S2C datatake observation times are ~30s late compared to the real sensing
+S2C_MP_SHIFT_SECONDS = 30
+
+
+def sort_datatakes_by_distance(datatake_documents, satellite, middle_timestamp):
+    """Sort datatakes by distance of their observation window to a sensing date
+
+    The distance is 0 when the date falls inside the window, so the datatake
+    covering the date comes first. The S2C MP shift is applied to the date.
+
+    Args:
+        datatake_documents (list(CdsDatatake)): the datatakes to sort in place
+        satellite (str): the satellite of the datatakes
+        middle_timestamp (float): the sensing date as a timestamp
+
+    Returns:
+        list(CdsDatatake): the sorted datatakes
+    """
+    if satellite == "S2C":
+        # Move the middle of 30 seconds due to the offset
+        middle_timestamp += S2C_MP_SHIFT_SECONDS
+
+    def distance(datatake_doc):
+        start = datatake_doc.observation_time_start.timestamp()
+        stop = datatake_doc.observation_time_stop.timestamp()
+
+        if start <= middle_timestamp <= stop:
+            return 0
+
+        if middle_timestamp > stop:
+            return middle_timestamp - stop
+
+        return start - middle_timestamp
+
+    datatake_documents.sort(key=distance)
+
+    return datatake_documents
 
 
 def find_datatake_from_sensing(mission, satellite, start_date, end_date, delta=20):
@@ -31,8 +69,8 @@ def find_datatake_from_sensing(mission, satellite, start_date, end_date, delta=2
 
     if satellite == "S2C":
         # Move the product to 30sec in the futur base on mp shift
-        adjsuted_start_date += timedelta(seconds=30)
-        adjsuted_end_date += timedelta(seconds=30)
+        adjsuted_start_date += timedelta(seconds=S2C_MP_SHIFT_SECONDS)
+        adjsuted_end_date += timedelta(seconds=S2C_MP_SHIFT_SECONDS)
 
     # FIXME: Magic number 8
     max_document = 8
@@ -72,24 +110,6 @@ def find_datatake_from_sensing(mission, satellite, start_date, end_date, delta=2
     product_end_date = end_date.timestamp()
     middle_date = product_start_date + (product_end_date - product_start_date) / 2
 
-    if satellite == "S2C":
-        # Move the middle of 30 seconds due to the offset
-        middle_date += 30
-
-    datatake_document_that_match.sort(
-        key=lambda datatake_doc: abs(
-            0
-            if (
-                datatake_doc.observation_time_start.timestamp()
-                <= middle_date
-                <= datatake_doc.observation_time_stop.timestamp()
-            )
-            else (
-                middle_date - datatake_doc.observation_time_stop.timestamp()
-                if middle_date > datatake_doc.observation_time_stop.timestamp()
-                else datatake_doc.observation_time_start.timestamp() - middle_date
-            )
-        )
+    return sort_datatakes_by_distance(
+        datatake_document_that_match, satellite, middle_date
     )
-
-    return datatake_document_that_match

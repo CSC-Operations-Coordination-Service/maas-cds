@@ -12,6 +12,7 @@ from collections import defaultdict
 
 from maas_engine.engine.rawdata import RawDataEngine
 from maas_cds.lib.periodutils import Period, reduce_periods
+from maas_cds.lib.queryutils.find_datatake_from_sensing import S2C_MP_SHIFT_SECONDS
 
 from maas_cds.model.datatake import CdsDatatake
 from maas_cds.model.dataflow import CdsDataflow
@@ -445,6 +446,11 @@ class BaseProductConsolidatorEngine(RawDataEngine):
     ):
         datatake_ms = MultiSearch()
 
+        # the S2C datatakes are late on the sensing: also fetch the next one
+        shift_value = datetime.timedelta(
+            seconds=S2C_MP_SHIFT_SECONDS if satellite == "S2C" else 0
+        )
+
         max_size = min(len(grouped_documents) * 2, 10000)
         for period in searched_periods:
 
@@ -454,7 +460,9 @@ class BaseProductConsolidatorEngine(RawDataEngine):
                 .filter("term", satellite_unit=satellite)
                 .filter(
                     "range",
-                    observation_time_start={"lte": period.end + 2 * tolerance_value},
+                    observation_time_start={
+                        "lte": period.end + 2 * tolerance_value + shift_value
+                    },
                 )
                 .filter(
                     "range",
