@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## Version 2.21.0
 
 ### S2C datatakes and the mission planning shift
 
