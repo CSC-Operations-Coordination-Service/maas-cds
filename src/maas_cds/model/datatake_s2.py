@@ -369,6 +369,9 @@ class CdsDatatakeS2(CdsDatatake):
 
         setattr(self, "number_of_expected_ds", len(self.get_downlinks()))
 
+        # Drop the product groups of datastrips that moved to another datatake
+        self.product_group_ids = self.search_datastrip_product_group_ids()
+
         if not self.product_group_ids:
             return
 
@@ -403,8 +406,9 @@ class CdsDatatakeS2(CdsDatatake):
                 yield product.to_bulk_action()
 
     def find_related_document_not_attached(self):
-        # Try to rattach products which have no datatake id to this datatake using sensing date
-        # Also update the datastrip_ds and product_group_ids list of the datatake
+        # Try to rattach products of the product groups of this datatake which are
+        # not attached to it, also update the datastrip_ds list of the datatake.
+        # Datastrips are left out: they follow their sensing, not their group.
 
         search_request = (
             CdsProduct.search()
@@ -412,11 +416,70 @@ class CdsDatatakeS2(CdsDatatake):
             .filter("term", satellite_unit=self.satellite_unit)
             .filter("exists", field="prip_id")
             .filter(~Q("term", datatake_id=self.datatake_id))
-            .filter("term", product_group_id=self.product_group_ids[0])
+            .filter(~Q("terms", product_type=self.get_datastrip_product_types()))
+            .filter("terms", product_group_id=list(self.product_group_ids))
             .params(ignore=404)
         )
 
         return search_request
+
+    @classmethod
+    def get_datastrip_product_types(cls):
+        """Return the datastrip product types of all product levels
+
+        Returns:
+            list(str): the datastrip product types
+        """
+        return [
+            f"MSI_{product_level}_DS"
+            for product_level, types in cls.S2_EXPECTED_TYPE_FROM_PRODUCT_LEVEL_DICT.items()
+            if "DS" in types
+        ]
+
+    def search_datastrip_product_groups(self):
+        """Search the product groups of the datastrips attached to this datatake
+
+        Returns:
+            dict: the product_group_ids per datastrip product type
+        """
+        search_request = (
+            CdsProduct.search()
+            .filter("term", mission=self.mission)
+            .filter("term", satellite_unit=self.satellite_unit)
+            .filter("term", datatake_id=self.datatake_id)
+            .filter("terms", product_type=self.get_datastrip_product_types())
+            .filter("exists", field="product_group_id")
+            .source(["product_type", "product_group_id"])
+            .params(ignore=404)
+        )
+
+        product_groups = {}
+        for product in search_request.scan():
+            product_groups.setdefault(product.product_type, set()).add(
+                product.product_group_id
+            )
+
+        return product_groups
+
+    def search_datastrip_product_group_ids(self):
+        """Return the product groups this datatake owns through its datastrips
+
+        A product group belongs to the datatake of its datastrip. The L0
+        datastrip is the reference, the other levels are only used when it is
+        not there, so that a group whose datastrips are split between two
+        datatakes is still owned by a single one.
+
+        Returns:
+            list(str): the sorted product_group_ids
+        """
+        product_groups = self.search_datastrip_product_groups()
+
+        product_group_ids = product_groups.get(self.DUPLICATED_DATASTRIP_REFERENCE_TYPE)
+
+        if not product_group_ids:
+            product_group_ids = set().union(*product_groups.values())
+
+        return sorted(product_group_ids)
 
     def search_expected_tiles(self) -> set[str]:
         """Look for expected tiles for this datatake
@@ -1226,10 +1289,13 @@ class CdsDatatakeS2(CdsDatatake):
             )
             self.datastrip_ids.append(product.datastrip_id)
 
+        # Only datastrips choose the datatake of a product group: a granule or a
+        # tile attached to the wrong datatake must not make it claim the group
         if (
             "product_group_id" in product
             and product.product_group_id
             and product.product_group_id not in self.product_group_ids
+            and product.product_type in self.get_datastrip_product_types()
         ):
             LOGGER.debug(
                 "product_group_id %s has been added to the list of product_group_ids of datatake:%s because of CdsProduct:%s",

@@ -1,5 +1,48 @@
 # Changelog
 
+## Unreleased
+
+### S2C datatakes and the mission planning shift
+
+The S2C mission planning is about 30 s late on the real sensing. Datastrips were
+attached to the previous datatake, and the granules of their product group stayed
+without datatake: datatakes reported incomplete while every product had arrived
+(S2C-11224-4 / 11224-5, 10423-x, 11177..11225-x).
+
+- The S2C datatakes are compared to the sensing shifted by 30 s (`S2C_MP_SHIFT_SECONDS`)
+  wherever a document is attached by its sensing: the consolidation of products and
+  publications (`find_nearest_datatake`, which also fetches the datatake starting up to
+  30 s later) and the datastrips in COMPUTE_COMPLETENESS.
+- COMPUTE_COMPLETENESS checks the datatake of an attached datastrip again: it moves when
+  its datatake no longer covers its shifted sensing and another one does. The datatake it
+  leaves is computed again.
+- A S2C product group held by no datatake yet gives its datatake from the group date
+  shifted by 30 s, so the L0 granules arriving with their datastrip are attached at once.
+  When two datatakes hold the group, the one covering the group date wins.
+- A S2 datatake owns the product groups of its L0 datastrips (of the other levels when
+  it has none): `product_group_ids` drops the groups of datastrips that moved, and
+  holds only the groups of datastrips. The datatake takes the products of all its
+  groups, not only of the first one, but never their datastrips, which follow their
+  sensing.
+
+### Upgrade
+
+- Deploy 2.21.0 on `completeness-s2` and on the `raw-only-*` engines consolidating S2
+  products and publications, then run `patch_2_21_0` (`--dry-run` first): an older
+  engine keeps attaching new S2C documents without the shift.
+- The patch brings the S2C documents sensed since `PATCH_2_21_0_FROM` (environment,
+  default `2026-09-01T00:00:00.000Z`) in line: it moves the datastrips, attaches the
+  granules and tiles to the datatake owning their group, computes again the datatakes
+  that gained or lost a product, then moves the publications to the nearest datatake of
+  their shifted sensing.
+- The per service S2 completeness (`cds-completeness-s2-*`) is not computed: from 2.15
+  its S2 compute fails (`CdsCompleteness.find_brother_products_scan` has no
+  `include_deleted`). The patch logs the datatakes whose publications moved, per index;
+  replay them to the 2.14 completeness-v2-s2 on `update.cds-completeness-s2`.
+- In dry run, the patch writes nothing: the granules it attaches and the datatakes it
+  computes are counted from the datastrips as they are, before their move.
+- The patch can run again: what is in line already is skipped.
+
 ## Version 2.20.0
 
 ### Engine configuration in OpenSearch

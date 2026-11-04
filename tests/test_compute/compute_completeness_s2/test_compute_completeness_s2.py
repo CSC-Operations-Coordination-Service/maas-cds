@@ -879,9 +879,16 @@ def test_datastrip_retrieval(datatake_s2_dict, product_s2_dict):
 
     prodS2 = CdsProductS2(**product_s2_dict)
 
+    # Only a datastrip makes the datatake own its product group
+    prodS2.product_type = "MSI_L0__GR"
     prodS2.datastrip_id = "ALPHA"
     prodS2.product_group_id = "ZULU"
 
+    datatake.retrieve_additional_fields_from_product(prodS2)
+    assert datatake.datastrip_ids == ["ALPHA"]
+    assert datatake.product_group_ids == []
+
+    prodS2.product_type = "MSI_L0__DS"
     datatake.retrieve_additional_fields_from_product(prodS2)
     assert datatake.datastrip_ids == ["ALPHA"]
     assert datatake.product_group_ids == ["ZULU"]

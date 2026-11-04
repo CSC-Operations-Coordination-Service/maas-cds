@@ -1,3 +1,4 @@
+import datetime
 import functools
 
 
@@ -48,7 +49,8 @@ class ProductDatatakeMixin:
         """Find the nearest datatake of the product
 
         Note:
-            Usefull for S2
+            Usefull for S2. The S2C datatakes are compared to the sensing shifted
+            by the MP shift, as when the products are attached by sensing.
 
         Args:
             datatakes (CdsDatatake): A list of datatake
@@ -56,6 +58,13 @@ class ProductDatatakeMixin:
         Returns:
             CdsDatatake: The neareset datatake
         """
+        # the query utils import the models, which import this mixin
+        # pylint: disable=import-outside-toplevel
+        from maas_cds.lib.queryutils.find_datatake_from_sensing import (
+            S2C_MP_SHIFT_SECONDS,
+            sort_datatakes_by_distance,
+        )
+
         if len(datatakes) == 0:
             return None
 
@@ -63,30 +72,20 @@ class ProductDatatakeMixin:
         product_end_date = self.sensing_end_date.timestamp()
         middle_date = product_start_date + (product_end_date - product_start_date) / 2
 
-        datatakes.sort(
-            key=lambda datatake_doc: abs(
-                0
-                if (
-                    datatake_doc.observation_time_start.timestamp()
-                    <= middle_date
-                    <= datatake_doc.observation_time_stop.timestamp()
-                )
-                else (
-                    middle_date - datatake_doc.observation_time_stop.timestamp()
-                    if middle_date > datatake_doc.observation_time_stop.timestamp()
-                    else datatake_doc.observation_time_start.timestamp() - middle_date
-                )
-            )
-        )
+        sort_datatakes_by_distance(datatakes, self.satellite_unit, middle_date)
 
         nearest_datatake = datatakes[0]
+
+        shift = datetime.timedelta(
+            seconds=S2C_MP_SHIFT_SECONDS if self.satellite_unit == "S2C" else 0
+        )
 
         # ensure the neareset datatake is legit to be THE associated datatake
         if (
             nearest_datatake.observation_time_start.timestamp()
-            <= (self.sensing_end_date + tolerance).timestamp()
+            <= (self.sensing_end_date + shift + tolerance).timestamp()
             and nearest_datatake.observation_time_stop.timestamp()
-            >= (self.sensing_start_date - tolerance).timestamp()
+            >= (self.sensing_start_date + shift - tolerance).timestamp()
         ):
             return nearest_datatake
 

@@ -160,6 +160,9 @@ class ComputeCompletenessEngine(DataEngine):
             )
             original_dict = product_document.to_dict()
 
+            # the mission planning may have changed since the product was attached
+            product_document.check_datatake_id()
+
             # group compute to avoid duplicate and save computation
             key = product_document.get_compute_key()
 
@@ -186,31 +189,55 @@ class ComputeCompletenessEngine(DataEngine):
                         product_document
                     )
 
-                if key not in self.tuples_to_compute:
-                    if datatake_doc is None:
-                        self.logger.debug(
-                            "[ITER][Product] - Datatake is missing skip this key : %s",
-                            key,
-                        )
-                        continue
+                self.add_key_to_compute(key, datatake_doc)
 
-                    self.logger.debug(
-                        "[ITER][Product] - Added key to compute : %s", key
+            # The datatake the product has just left lost it: compute it again
+            detached_key = product_document.get_detached_compute_key()
+
+            if detached_key:
+                detached_datatake_id = detached_key[0]
+                if detached_datatake_id not in self.local_cache_datatake:
+                    self.load_datatake_doc(
+                        detached_datatake_id,
+                        product_document.mission,
                     )
-                    self.tuples_to_compute.append(key)
 
-                    other_calculations = datatake_doc.impact_other_calculation(key)
+                self.add_key_to_compute(
+                    detached_key, self.get_datatake_doc(detached_datatake_id)
+                )
 
-                    for other_calculation in other_calculations:
-                        if other_calculation in self.tuples_to_compute:
-                            continue
+    def add_key_to_compute(self, key, datatake_doc):
+        """Add a compute key and the ones it impacts to the keys to compute
 
-                        self.logger.debug(
-                            "[ITER][Product] - Added extra key to compute : %s",
-                            other_calculation,
-                        )
+        Args:
+            key (tuple): the (datatake_id, product_type) compute key
+            datatake_doc (CdsDatatake): the datatake of the key, None if missing
+        """
+        if key in self.tuples_to_compute:
+            return
 
-                        self.tuples_to_compute.append(other_calculation)
+        if datatake_doc is None:
+            self.logger.debug(
+                "[ITER][Product] - Datatake is missing skip this key : %s",
+                key,
+            )
+            return
+
+        self.logger.debug("[ITER][Product] - Added key to compute : %s", key)
+        self.tuples_to_compute.append(key)
+
+        other_calculations = datatake_doc.impact_other_calculation(key)
+
+        for other_calculation in other_calculations:
+            if other_calculation in self.tuples_to_compute:
+                continue
+
+            self.logger.debug(
+                "[ITER][Product] - Added extra key to compute : %s",
+                other_calculation,
+            )
+
+            self.tuples_to_compute.append(other_calculation)
 
     def action_iterator_from_product(self):
         """Compute completeness from CdsProduct

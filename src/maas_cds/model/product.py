@@ -169,6 +169,22 @@ class CdsProduct(
         )
         return None
 
+    def check_datatake_id(self):
+        """Check that an attached product still belongs to its datatake
+
+        Called by the completeness before computing the key of the product, a
+        mission can move the product to another datatake here. Default does
+        nothing.
+        """
+
+    def get_detached_compute_key(self):
+        """Return the compute key of the datatake the product has just left
+
+        A product moved to another datatake must also be removed from the
+        completeness of the previous one. Default None, the product never moves.
+        """
+        return None
+
     def data_for_datatake(self):
         """When a datatake is not already create from the mp
         this method allow to create the associate datatake from the product
