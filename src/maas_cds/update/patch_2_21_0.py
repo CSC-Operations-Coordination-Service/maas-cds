@@ -13,9 +13,10 @@ sensed since PATCH_2_21_0_FROM (default 2026-09-01) in line, with the 2.21 code:
 1. the datastrips move to the datatake covering their shifted sensing
    (COMPUTE_COMPLETENESS, CdsProductS2.check_datatake_id);
 2. each datatake owns the product groups of its datastrips and takes their
-   granules and tiles (CdsDatatakeS2.load_data_before_compute); the datatakes
-   that gained or lost a product are computed again, as on a mission planning
-   update;
+   granules and tiles (CdsDatatakeS2.load_data_before_compute); all the datatakes
+   of the period are then computed again, as on a mission planning update, and
+   only the changed ones are written: a run stopped after the re-attach leaves
+   no datatake behind for the next one;
 3. the publications move to the nearest datatake of their shifted sensing
    (consolidation, find_nearest_datatake).
 
@@ -30,8 +31,12 @@ step 1 writes, so it only counts what it would compute.
 
 import bisect
 import datetime
+import logging
 import os
 import sys
+
+import opensearchpy.connection.connections as db_connections
+from opensearchpy.helpers import parallel_bulk
 
 from maas_engine.update.migration import MaasMigrator, migration_main
 from maas_model import datestr_to_utc_datetime
@@ -78,6 +83,12 @@ PUBLICATION_SOURCE = PUBLICATION_DATATAKE_FIELDS + [
 # the datatakes overlapping the search window of a publication, at most
 NEAREST_CANDIDATES = 10
 
+# The scans below query and write for each hit: a page of the default scroll
+# (1000 hits, 5 minutes) outlives its shard contexts (ScanError on 2026-11-04,
+# 1000 datatakes in more than 5 minutes)
+SCROLL = "1h"
+DATATAKE_PAGE_SIZE = 100
+
 
 class PatchV2_21_0(MaasMigrator):
     """Migration tool to migrate from 2.20 to 2.21"""
@@ -106,6 +117,9 @@ class PatchV2_21_0(MaasMigrator):
 
         CdsDatatake.COMPLETENESS_TOLERANCE = None
         CdsDatatake.MISSING_PERIODS_MAXIMAL_OFFSET = MISSING_PERIODS_MAXIMAL_OFFSET
+
+        # -v is for the patch: one line per request would hide it
+        logging.getLogger("opensearch").setLevel(logging.WARNING)
 
         self.logger.info(
             "Patching the %s documents sensed from %s to %s",
@@ -150,7 +164,9 @@ class PatchV2_21_0(MaasMigrator):
 
         self.logger.info("[Datastrip] - %s documents to check", search.count())
 
-        for product in search.params(version=True, seq_no_primary_term=True).scan():
+        for product in search.params(
+            version=True, seq_no_primary_term=True, scroll=SCROLL
+        ).scan():
             product.check_datatake_id()
 
             if product.detached_datatake_id is None:
@@ -176,7 +192,7 @@ class PatchV2_21_0(MaasMigrator):
 
         self.logger.info("[Datatake] - %s documents to check", search.count())
 
-        for datatake in search.scan():
+        for datatake in search.params(scroll=SCROLL, size=DATATAKE_PAGE_SIZE).scan():
             product_group_ids = datatake.search_datastrip_product_group_ids()
 
             if product_group_ids != sorted(datatake.product_group_ids or []):
@@ -212,21 +228,29 @@ class PatchV2_21_0(MaasMigrator):
 
     @MaasMigrator.migration_action_iterator
     def datatake_iterator(self):
-        """Compute the S2C datatakes that gained or lost a product"""
+        """Compute the S2C datatakes of the period again
+
+        All of them, not only the ones that gained or lost a product in this run:
+        the products a stopped run re-attached are on their datatake for the
+        next run, which would not compute it.
+        """
+        search = self.datatake_search().params(ignore=404)
+
         self.logger.info(
-            "[Datatake] - %s datatakes to compute", len(self.datatakes_to_compute)
+            "[Datatake] - %s datatakes to compute, %s gained or lost a product",
+            search.count(),
+            len(self.datatakes_to_compute),
         )
 
         if self.args.dry_run:
             return
 
-        for datatake in (
-            CdsDatatakeS2.search()
-            .filter("term", satellite_unit=SATELLITE_UNIT)
-            .filter("terms", datatake_id=sorted(self.datatakes_to_compute))
-            .params(ignore=404, version=True, seq_no_primary_term=True)
-            .scan()
-        ):
+        for datatake in search.params(
+            version=True,
+            seq_no_primary_term=True,
+            scroll=SCROLL,
+            size=DATATAKE_PAGE_SIZE,
+        ).scan():
             # as the engine does on a mission planning update
             original_datatake_dict = datatake.to_dict()
             original_status = getattr(datatake, "final_completeness_status", None)
@@ -341,7 +365,9 @@ class PatchV2_21_0(MaasMigrator):
 
         moved = 0
 
-        for publication in search.params(seq_no_primary_term=True).scan():
+        for publication in search.params(
+            seq_no_primary_term=True, scroll=SCROLL
+        ).scan():
             nearest_datatake = publication.find_nearest_datatake(
                 self.search_candidate_datatakes(datatakes, starts, publication),
                 tolerance,
@@ -410,6 +436,22 @@ class PatchV2_21_0(MaasMigrator):
                 len(datatake_ids),
                 " ".join(sorted(datatake_ids)),
             )
+
+    def bulk_exec(self, iterator):
+        """override: a failed action is logged and the patch goes on
+
+        The engines run during the patch: a version conflict is a document an
+        engine wrote after the patch read it, with the 2.21 code.
+        """
+        for success, info in parallel_bulk(
+            db_connections.get_connection(),
+            iterator,
+            refresh=True,
+            raise_on_error=False,
+            request_timeout=self.args.es_timeout,
+        ):
+            if not success:
+                self.logger.error(info)
 
     def run(self):
         """override"""
