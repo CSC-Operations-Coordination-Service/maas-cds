@@ -156,31 +156,14 @@ def test_find_brother_products_scan_query(mock_scan):
     assert _matches(deleted, with_deleted.to_dict()["query"])
 
 
-@patch.object(opensearchpy.Search, "scan", autospec=True)
-def test_find_brother_products_scan_cache(mock_scan):
-    """During the two completeness passes the publications are fetched once"""
-
-    publications = [_publication("A", "IW_RAW__0S", 0, 100)]
-    mock_scan.side_effect = _fake_scan(publications)
-
-    completeness = CdsCompletenessS1(**KEY)
-    completeness._brother_products_cache = {}
-
-    first = completeness.find_brother_products_scan("IW_RAW__0S", include_deleted=True)
-    second = completeness.find_brother_products_scan("IW_RAW__0S", include_deleted=True)
-
-    assert first == second == publications
-    assert mock_scan.call_count == 1
-
-
 @patch.object(CdsCompletenessS1, "get_expected_value", return_value=300_000_000)
 @patch.object(CdsCompletenessS1, "get_all_product_types", return_value=["IW_RAW__0S"])
 @patch.object(opensearchpy.Search, "scan", autospec=True)
 def test_s1_compute_completeness_with_deleted_publication(mock_scan, *_mocks):
     """A and B overlap by 50%, B is deleted from DD; C is alone.
 
-    The live completeness ignores B, the original one keeps it. The per-service
-    completeness does not detect the duplicated publications: no ``duplicateds``.
+    The per-service completeness makes the live pass only, which ignores B: no
+    ``original_completeness``, and no ``duplicateds`` either.
     """
 
     mock_scan.side_effect = _fake_scan(
@@ -207,14 +190,13 @@ def test_s1_compute_completeness_with_deleted_publication(mock_scan, *_mocks):
 
     completeness.compute_completeness()
 
-    # live: A(0-100) + C(200-300)
+    # A(0-100) + C(200-300)
     assert completeness.IW_RAW__0S_local_value == 200_000_000
-    # original: A(0-100) + B(up to 150) + C(200-300)
-    assert completeness.original_completeness["IW_RAW__0S_local_value"] == 250_000_000
 
-    # a single query for both passes
+    # a single pass, a single query
     assert mock_scan.call_count == 1
 
+    assert "original_completeness" not in completeness.to_dict()
     assert "duplicateds" not in completeness.to_dict()
 
 
@@ -335,7 +317,7 @@ def test_engine_v2_from_completeness_document(mock_scan, *_mocks):
 
     assert len(actions["CdsCompletenessS1"]) == 1
     assert documents["CdsCompletenessS1"].IW_RAW__0S_local_value == 100_000_000
-    assert documents["CdsCompletenessS1"].original_completeness
+    assert "original_completeness" not in documents["CdsCompletenessS1"].to_dict()
 
     attach, _ = actions["CdsCompletenessS2"]
     assert attach["_index"] == "cds-publication-2026-11"

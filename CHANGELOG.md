@@ -1,5 +1,19 @@
 # Changelog
 
+## Version 2.21.3
+
+### Completeness V2: the live pass only
+
+2.21.2 computed the S1 / S2 completeness V2 twice, as the datatakes, to keep the
+completeness with the deleted publications in `original_completeness`. The
+per-service completeness does not need it: COMPUTE_COMPLETENESS_V2 makes the live pass
+only, as 2.14 did, and writes neither `original_completeness` nor `duplicateds`. A
+publication deleted from its service still does not count.
+
+### Upgrade
+
+- Deploy 2.21.3 on `completeness-v2-s1` and `completeness-v2-s2` instead of 2.21.2.
+
 ## Version 2.21.2
 
 ### Completeness V2 for S1 and S2
