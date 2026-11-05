@@ -1,6 +1,7 @@
 """Custom CDS model definition for publication"""
 
 import logging
+import typing
 
 from opensearchpy import Keyword
 from maas_cds.model.anomaly_mixin import AnomalyMixin
@@ -76,6 +77,45 @@ class CdsPublication(
             changed |= self.remove_field(name)
 
         return changed
+
+    def deletion_trace(self) -> typing.Tuple[bool, typing.Optional[str]]:
+        """Trace whether this publication has been deleted from its service.
+
+        Same contract as CdsProduct.deletion_trace, read by the S1 / S2 compute of
+        the per-service completeness. Reads the flat attributes set by
+        :meth:`mark_as_deleted`: publications marked before the deletion issue was
+        recorded only have the deletion date.
+
+        Returns:
+            tuple: ``(to_be_deleted, deletion_issue)`` where ``to_be_deleted`` is
+                True when the publication has been deleted from its service, and
+                ``deletion_issue`` is the related Jira issue key if available.
+        """
+        deletion_issue = getattr(self, "deletion_issue", None)
+
+        if not deletion_issue and not getattr(self, "deletion_date", None):
+            return False, None
+
+        return True, deletion_issue
+
+    def deletion_trace_by_interface(
+        self,
+    ) -> typing.Dict[str, typing.Tuple[bool, typing.Optional[str]]]:
+        """Trace deletion split by interface type (``DD`` / ``LTA``).
+
+        Same contract as CdsProduct.deletion_trace_by_interface. A publication is
+        scoped to a single service, so its deletion is only reported on the
+        interface of its own ``service_type``.
+
+        Returns:
+            dict: ``{"DD": (deleted, issue), "LTA": (deleted, issue)}``
+        """
+        trace = {"DD": (False, None), "LTA": (False, None)}
+
+        if self.service_type in trace:
+            trace[self.service_type] = self.deletion_trace()
+
+        return trace
 
     @property
     def completeness_document_index(self):

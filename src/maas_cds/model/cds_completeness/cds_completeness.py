@@ -6,6 +6,7 @@ from maas_cds.lib.config_manager import MaasConfigManager
 from maas_cds.model.datatake import CdsDatatake
 
 from maas_cds.model import generated
+import maas_cds.model.publication as publication_model
 from maas_cds.model.enumeration import CompletenessScope
 from maas_cds.lib.status import evaluate_completeness_status
 from maas_cds.model.anomaly_mixin import AnomalyMixin
@@ -21,14 +22,21 @@ class CdsCompleteness(generated.CdsCompleteness, CdsDatatake):
 
     cams_tickets = Keyword(multi=True)
 
-    def find_brother_products_scan(self, product_type, indices=None):
+    def find_brother_products_scan(
+        self, product_type, indices=None, include_deleted=False
+    ):
         """Find products with the same datatake and the same product_type
 
-        Note: Common method to extract publication associated on the same completeness key
+        Note: Common method to extract publication associated on the same completeness key.
+        Same contract as CdsDatatake.find_brother_products_scan, which the S1 / S2
+        compute share: they pass include_deleted and read the deletion trace of
+        each publication.
 
         Args:
             product_type (str): product_type searched
-            indices (): list of indices generated to find with more precision
+            indices (): ignored, the S2 compute gives product partitions
+            include_deleted (bool): when True, publications already deleted from
+                their service are kept in the result.
 
         Returns:
             list(CdsPublication): list of products matching datatake_id and product_type
@@ -38,8 +46,18 @@ class CdsCompleteness(generated.CdsCompleteness, CdsDatatake):
         # with list of datatake / product types later post-processed to be grouped by
         # tuple (datatake_id, product_type) in a dict
 
+        # Reuse a previously fetched result during the two completeness passes so a
+        # single query is issued for both the "with all products" and the live pass.
+        cache_key = (product_type, include_deleted)
+        if (
+            self._brother_products_cache is not None
+            and cache_key in self._brother_products_cache
+        ):
+            return self._brother_products_cache[cache_key]
+
+        # The custom model, whose hits carry the deletion trace
         search_request = (
-            generated.CdsPublication.search()
+            publication_model.CdsPublication.search()
             .filter("term", datatake_id=self.datatake_id)
             .filter("term", satellite_unit=self.satellite_unit)
             .filter("term", product_type=product_type)
@@ -48,9 +66,31 @@ class CdsCompleteness(generated.CdsCompleteness, CdsDatatake):
             .params(ignore=404)
         )
 
+        # Unless explicitly asked to include them, exclude publications already
+        # deleted so the live completeness is not impacted by deletions.
+        if not include_deleted:
+            search_request = search_request.exclude(
+                "exists", field="deletion_issue"
+            ).exclude("exists", field="deletion_date")
+
+        # When caching is active (completeness two-pass) the result must be
+        # materialized so it can be iterated twice.
+        if self._brother_products_cache is not None:
+            result = list(search_request.scan())
+            self._brother_products_cache[cache_key] = result
+            return result
+
         query_scan = search_request.scan()
 
         return query_scan
+
+    def finalize_duplicateds(self):
+        """Override: no ``duplicateds`` on the per-service completeness.
+
+        Its compute_all_local_completeness does not detect the duplicated
+        publications, so a ``duplicateds`` object would only report pairs that
+        were never looked for.
+        """
 
     def retrieve_additional_fields_from_publication(
         self, product: generated.CdsPublication
