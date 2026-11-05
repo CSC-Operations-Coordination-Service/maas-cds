@@ -46,15 +46,6 @@ class CdsCompleteness(generated.CdsCompleteness, CdsDatatake):
         # with list of datatake / product types later post-processed to be grouped by
         # tuple (datatake_id, product_type) in a dict
 
-        # Reuse a previously fetched result during the two completeness passes so a
-        # single query is issued for both the "with all products" and the live pass.
-        cache_key = (product_type, include_deleted)
-        if (
-            self._brother_products_cache is not None
-            and cache_key in self._brother_products_cache
-        ):
-            return self._brother_products_cache[cache_key]
-
         # The custom model, whose hits carry the deletion trace
         search_request = (
             publication_model.CdsPublication.search()
@@ -73,24 +64,19 @@ class CdsCompleteness(generated.CdsCompleteness, CdsDatatake):
                 "exists", field="deletion_issue"
             ).exclude("exists", field="deletion_date")
 
-        # When caching is active (completeness two-pass) the result must be
-        # materialized so it can be iterated twice.
-        if self._brother_products_cache is not None:
-            result = list(search_request.scan())
-            self._brother_products_cache[cache_key] = result
-            return result
-
         query_scan = search_request.scan()
 
         return query_scan
 
-    def finalize_duplicateds(self):
-        """Override: no ``duplicateds`` on the per-service completeness.
+    def compute_completeness(self):
+        """Override: the live pass only, deleted publications ignored.
 
-        Its compute_all_local_completeness does not detect the duplicated
-        publications, so a ``duplicateds`` object would only report pairs that
-        were never looked for.
+        The per-service completeness keeps no ``original_completeness`` (the pass
+        with the deleted documents) and does not look for duplicated publications,
+        so it has no ``duplicateds`` either.
         """
+        self.compute_all_local_completeness()
+        self.compute_global_completeness()
 
     def retrieve_additional_fields_from_publication(
         self, product: generated.CdsPublication
