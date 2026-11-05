@@ -1,5 +1,31 @@
 # Changelog
 
+## Unreleased
+
+### Completeness V2 for S1 and S2
+
+From 2.15.0, COMPUTE_COMPLETENESS_V2 failed on every S1 and S2 message (`TypeError:
+CdsCompleteness.find_brother_products_scan() got an unexpected keyword argument
+'include_deleted'`): the S1 / S2 compute it shares with the datatakes asks for the
+deleted documents too and reads their deletion trace, which the publications did not
+have. `completeness-v2-s1` / `-s2` stayed on the 2.14.18 / 2.14.25 images.
+
+- `CdsCompleteness.find_brother_products_scan` takes `include_deleted`, like the
+  datatake one: a publication deleted from its service (`deletion_issue` or
+  `deletion_date`, set by TRACK_DELETION) counts in `original_completeness` only, no
+  longer in the live completeness as on 2.14. Both passes share one query per product
+  type.
+- `CdsPublication.deletion_trace()` / `deletion_trace_by_interface()`: the deletion is
+  reported on the interface of the publication's own service.
+- No `duplicateds` on the per-service completeness, which does not look for duplicated
+  publications.
+
+### Upgrade
+
+- Deploy 2.21.2 on `completeness-v2-s1` and `completeness-v2-s2`; the other engines can
+  stay on their version. The completeness documents gain `original_completeness` as
+  they are computed again, dynamically mapped in `cds-completeness-*`.
+
 ## Version 2.21.1
 
 ### patch_2_21_0 on the whole period
