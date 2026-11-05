@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## Version 2.21.2
 
 ### Completeness V2 for S1 and S2
 
