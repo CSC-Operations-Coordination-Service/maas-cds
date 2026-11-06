@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## Version 2.22.0
 
 ### AIS datatakes and the AI_RAW products
 
