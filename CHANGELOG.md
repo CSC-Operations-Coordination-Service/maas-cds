@@ -1,5 +1,21 @@
 # Changelog
 
+## Version 2.22.1
+
+### patch_2_22_0: the AIS datatakes computed
+
+- The 2.22.0 patch stopped on the first AIS datatake to write (`AttributeError:
+  'CdsDatatakeS1' object has no attribute 'final_completeness_status'`, a S2 field), after
+  recreating the AIS datatakes and attaching the AI_RAW, before computing the datatakes
+  and the AI completeness. It logs the S1 `sensing_global_status`.
+- It computes all the AIS datatakes again, not only those recreated or that gained or
+  lost an AI_RAW in the run, and writes the changed ones: a stopped run leaves no
+  datatake behind for the next one. About 0.4 s a datatake, 20,700 AIS datatakes.
+
+### Upgrade
+
+- The engines stay on 2.22.0. Run `patch_2_22_0` from the 2.22.1 image.
+
 ## Version 2.22.0
 
 ### AIS datatakes and the AI_RAW products
@@ -31,7 +47,8 @@ about 150 AI_RAW a month were attached to no AIS datatake, mostly on S1D.
 - The patch recreates the AIS datatakes each report deleted, from the first datatake of
   the unit (the S1D mission planning before is a test one), attaches every AI_RAW again,
   computes the datatakes recreated or that gained or lost an AI_RAW, then gives the AI
-  completeness the datatake and timeliness of its AI_RAW. Dry run on prod (2026-11-06):
+  completeness the datatake and timeliness of its AI_RAW (from 2.22.1, all the AIS
+  datatakes are computed). Dry run on prod (2026-11-06):
   685 AIS datatakes (S1C 181, S1D 504), 2,643 AI_RAW attached, 145 moved, 77 without any
   AIS datatake planned, 1,631 datatakes to compute, 24,678 of 28,331 AI completeness.
 - In dry run nothing is written: the AI_RAW are attached to the datatakes it would
