@@ -237,12 +237,34 @@ def test_the_ai_completeness_gets_the_datatake_of_its_ai_raw():
 
 def test_dry_run_computes_no_datatake():
     patch_ = migrator(dry_run=True)
-    patch_.datatakes_to_compute = {"S1D-3688002"}
+    datatake = build_datatake(*DATATAKE_3688002)
 
-    with patch.object(CdsDatatakeS1, "search") as search:
+    with patch.object(
+        CdsDatatakeS1, "search", return_value=FakeSearch([datatake])
+    ), patch.object(CdsDatatakeS1, "compute_completeness") as compute:
         assert not list(patch_.datatake_iterator())
 
-    search.assert_not_called()
+    compute.assert_not_called()
+
+
+def test_every_ais_datatake_is_computed_only_the_changed_ones_written():
+    # a datatake an AI_RAW joined in a stopped run, and one in line already
+    joined = build_datatake(*DATATAKE_3688002)
+    in_line = build_datatake(*DATATAKE_3689000)
+    in_line.sensing_global_status = "Complete"
+
+    def compute(datatake):
+        datatake.sensing_global_status = "Complete"
+
+    with patch.object(
+        CdsDatatakeS1, "search", return_value=FakeSearch([joined, in_line])
+    ), patch.object(CdsDatatakeS1, "purge_dynamic_fields"), patch.object(
+        CdsDatatakeS1, "compute_completeness", autospec=True, side_effect=compute
+    ):
+        actions = list(migrator().datatake_iterator())
+
+    assert [action["_id"] for action in actions] == ["S1D-3688002"]
+    assert actions[0]["_source"]["sensing_global_status"] == "Complete"
 
 
 def test_the_recreated_datatakes_are_candidates_in_dry_run():

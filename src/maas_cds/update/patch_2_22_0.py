@@ -16,12 +16,13 @@ the existing documents in line, with the 2.22 code:
    datatake of the unit;
 2. every AI_RAW goes to the nearest AIS datatake of its sensing
    (CdsProductS1.is_ai_datatake_candidate / get_nearest_datatake);
-3. the datatakes recreated, and those that gained or lost an AI_RAW, are computed;
+3. all the AIS datatakes are computed again, only the changed ones are written;
 4. the AI completeness takes the datatake and timeliness of its AI_RAW.
 
 Run it after the engines run 2.22: an older post-consolidation keeps deleting the
 S1D AIS datatakes. In dry run nothing is written: steps 2 and 4 use the datatakes
-step 1 would recreate, step 3 only counts.
+step 1 would recreate, step 3 only counts. It can run again: what is in line already
+is skipped.
 """
 
 import bisect
@@ -100,6 +101,9 @@ DATATAKE_SOURCE = [
 
 # the AIS datatakes before the end of an AI_RAW window, at most
 NEAREST_CANDIDATES = 20
+
+# the S1 completeness status of a datatake (S2 has final_completeness_status)
+SENSING_STATUS = "sensing_global_status"
 
 SCROLL = "1h"
 DATATAKE_PAGE_SIZE = 100
@@ -396,50 +400,57 @@ class PatchV2_22_0(MaasMigrator):
 
     @MaasMigrator.migration_action_iterator
     def datatake_iterator(self):
-        """Compute the AIS datatakes recreated or that gained or lost an AI_RAW"""
-        datatake_keys = sorted(self.datatakes_to_compute)
+        """Compute the AIS datatakes again
 
-        self.logger.info("[Datatake] - %s datatakes to compute", len(datatake_keys))
+        All of them, not only the ones recreated or that gained or lost an AI_RAW
+        in this run: the AI_RAW a stopped run attached are on their datatake for
+        the next one, which would not compute it. Only the changed ones are written.
+        """
+        search = (
+            CdsDatatakeS1.search()
+            .filter("prefix", satellite_unit="S1")
+            .filter("term", instrument_mode=AIS)
+            .params(ignore=404)
+        )
+
+        self.logger.info(
+            "[Datatake] - %s datatakes to compute, %s recreated or gained or lost"
+            " an AI_RAW",
+            search.count(),
+            len(self.datatakes_to_compute),
+        )
 
         if self.args.dry_run:
             return
 
-        for page in range(0, len(datatake_keys), DATATAKE_PAGE_SIZE):
-            for datatake in (
-                CdsDatatakeS1.search()
-                .filter("ids", values=datatake_keys[page : page + DATATAKE_PAGE_SIZE])
-                .params(
-                    ignore=404,
-                    version=True,
-                    seq_no_primary_term=True,
-                    size=DATATAKE_PAGE_SIZE,
-                )
-                .execute()
-            ):
-                # as the engine does on a mission planning update
-                original_datatake_dict = datatake.to_dict()
-                original_completeness = getattr(
-                    datatake, "final_completeness_status", None
-                )
+        for datatake in search.params(
+            version=True,
+            seq_no_primary_term=True,
+            scroll=SCROLL,
+            size=DATATAKE_PAGE_SIZE,
+        ).scan():
+            # as the engine does on a mission planning update
+            original_datatake_dict = datatake.to_dict()
+            original_status = original_datatake_dict.get(SENSING_STATUS)
 
-                datatake.purge_dynamic_fields()
-                datatake.missing_periods = None
+            datatake.purge_dynamic_fields()
+            datatake.missing_periods = None
 
-                yield from datatake.load_data_before_compute()
+            yield from datatake.load_data_before_compute()
 
-                datatake.compute_completeness()
+            datatake.compute_completeness()
 
-                if original_datatake_dict == datatake.to_dict():
-                    continue
+            if original_datatake_dict == datatake.to_dict():
+                continue
 
-                self.logger.info(
-                    "[Datatake] - %s: %s -> %s",
-                    datatake.key,
-                    original_completeness,
-                    datatake.final_completeness_status,
-                )
+            self.logger.info(
+                "[Datatake] - %s: %s -> %s",
+                datatake.key,
+                original_status,
+                datatake.to_dict().get(SENSING_STATUS),
+            )
 
-                yield datatake.to_bulk_action()
+            yield datatake.to_bulk_action()
 
     @MaasMigrator.migration_action_iterator
     def ai_completeness_iterator(self):
