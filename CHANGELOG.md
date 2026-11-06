@@ -1,5 +1,43 @@
 # Changelog
 
+## Version 2.22.0
+
+### AIS datatakes and the AI_RAW products
+
+87 % of the `cds-ai-production-completeness` documents had no datatake (`______`), and
+about 150 AI_RAW a month were attached to no AIS datatake, mostly on S1D.
+
+- A S1 mission planning report lists its first AIS datatake 2 to 3.5 h after its first
+  SAR one, and its consolidation deletes every datatake from its first observation: the
+  AIS datatakes of the previous report in between were lost every day. POST_CONSOLIDATE_MP_FILE
+  recreated them for S1C only, by a `datatake_id` range compared as strings, which broke
+  when the S1C orbit reached 10000. It now recreates them for every S1 unit by time: the
+  AIS rows of the previous report from the first observation of the report to its first
+  AIS one (to the next report when consolidated again), unless a datatake with their id
+  exists. A report without AIS (S1A) recreates nothing.
+- An AI_RAW goes to the AIS datatake overlapping its sensing widened by 10 min
+  (`MATCHING_DELTA_PRODUCTS`) with the timeliness of its packet store when the PRIP gives
+  it (S1C), the one sharing the most sensing with it, else the closest. It used to need
+  one datatake covering its whole sensing: an AI_RAW over two datatakes had none. An
+  AI_RAW moving to another datatake has the one it leaves computed again.
+- COMPUTE_AI_RELATED runs beside COMPUTE_COMPLETENESS and copied the datatake of the
+  AI_RAW before it was attached: it now looks the datatake up itself.
+
+### Upgrade
+
+- Deploy 2.22.0 on `raw-only-mp`, `completeness-s1` and `completeness-common`, then run
+  `patch_2_22_0` (`--dry-run` first): an older post-consolidation keeps deleting the S1D
+  AIS datatakes.
+- The patch recreates the AIS datatakes each report deleted, from the first datatake of
+  the unit (the S1D mission planning before is a test one), attaches every AI_RAW again,
+  computes the datatakes recreated or that gained or lost an AI_RAW, then gives the AI
+  completeness the datatake and timeliness of its AI_RAW. Dry run on prod (2026-11-06):
+  685 AIS datatakes (S1C 181, S1D 504), 2,643 AI_RAW attached, 145 moved, 77 without any
+  AIS datatake planned, 1,631 datatakes to compute, 24,678 of 28,331 AI completeness.
+- In dry run nothing is written: the AI_RAW are attached to the datatakes it would
+  recreate, the datatakes are only counted.
+- The patch can run again: what is in line already is skipped.
+
 ## Version 2.21.3
 
 ### Completeness V2: the live pass only
