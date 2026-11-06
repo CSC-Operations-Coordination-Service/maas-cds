@@ -110,6 +110,12 @@ class ComputeAiRelatedEngine(RawDataEngine):
                 )
 
             completeness_doc.input_name = product_doc.name
+
+            # COMPUTE_COMPLETENESS attaches the AI_RAW to its datatake in
+            # parallel, so it is usually not attached yet: look it up here too
+            if product_doc.datatake_id_is_missing():
+                product_doc.get_compute_key()
+
             completeness_doc.datatake_id = product_doc.datatake_id
             completeness_doc.timeliness = product_doc.timeliness
 

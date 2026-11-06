@@ -1,7 +1,7 @@
 """Update entities after some container products are see"""
 
 import typing
-from datetime import timedelta
+from datetime import datetime, timedelta, UTC
 from maas_cds.lib.config_manager import MaasConfigManager
 from maas_cds.model.configuration.maas_config import OcsConfigCompleteness
 from opensearchpy import Q
@@ -89,69 +89,157 @@ class PostConsolidateMpFileEngine(
             # retrieve satelite id from report
             sat_id = local_report_name[0:3]
 
-            if sat_id != "S1C":
+            # A report lists its AIS datatakes hours after its first SAR one, the
+            # consolidation deletes them from the previous report: every S1 unit
+            # flying an AIS (S1C, S1D) needs them back
+            if not sat_id.startswith("S1"):
                 continue
-            # Get the next reportName
+
             previous_repport_name = self.get_previous_report(sat_id, local_report_name)
+            if previous_repport_name is None:
+                continue
 
-            # A : Get latest datatake id AIS with the previous reportName
-            query_latest_datatake_id = (
-                self.consolidated_data.search()
-                .filter("term", name=previous_repport_name)
-                .filter("term", instrument_mode="AIS")
-                .sort({"datatake_id": {"order": "desc"}})
-                .params(size=1)
-            )
-
-            self.logger.debug("[Query A] - %s", query_latest_datatake_id.to_dict())
-            latest_datatake_id = list(query_latest_datatake_id.execute())[0]
-
-            # B : Get first datatake id AIS with the current reportName
-            query_first_datatake_id = (
-                self.consolidated_data.search()
-                .filter("term", name=local_report_name)
-                .filter("term", instrument_mode="AIS")
-                .sort("datatake_id")
-                .params(size=1)
-            )
-
-            self.logger.debug("[Query B] - %s", query_first_datatake_id.to_dict())
-            first_datatake_id = list(query_first_datatake_id.execute())[0]
-
-            # Get all raw-data-mp-product with previousReportName between the A and the B
-            query_mp_products_to_consolidate = (
-                self.raw_data.search()
-                .filter("term", reportName=previous_repport_name)
-                .filter(
-                    "range",
-                    datatake_id={
-                        "gt": latest_datatake_id.datatake_id,
-                        "lt": first_datatake_id.datatake_id,
-                    },
-                )
-                .filter("term", instrument_mode="AIS")
-            )
-
-            self.logger.debug(
-                "[Query B] - %s", query_mp_products_to_consolidate.to_dict()
-            )
-            mp_products_to_consolidate = list(query_mp_products_to_consolidate.scan())
-
-            self.logger.info(
-                "Recreating datatake between %s and %s from %s",
-                latest_datatake_id.datatake_id,
-                first_datatake_id.datatake_id,
-                previous_repport_name,
-            )
-
-            for mp_product in mp_products_to_consolidate:
+            for mp_product in self.get_ais_to_recreate(
+                sat_id, local_report_name, previous_repport_name
+            ):
                 self.logger.info(
                     "[%s-%s] - Recreate this missing datatake",
                     mp_product.satellite_id,
                     mp_product.datatake_id,
                 )
                 produced = self.consolidate_CdsDatatake_from_MpProduct(mp_product)
-                yield produced.to_bulk_action()
+                if produced:
+                    yield produced.to_bulk_action()
+
+    def get_report_min_date(self, report_name, instrument_mode=None):
+        """Get the first observation start of a report
+
+        Args:
+            report_name (str): the report to inspect
+            instrument_mode (str, optional): only the rows of this instrument mode
+
+        Returns:
+            datetime: the first observation start, None without row
+        """
+        search = self.raw_data.search().filter("term", reportName=report_name)
+        if instrument_mode:
+            search = search.filter("term", instrument_mode=instrument_mode)
+
+        search.aggs.metric(
+            "data_produced", "min", field=self.raw_data_time_start_field_name
+        )
+
+        value = search[0].execute().aggregations.data_produced["value"]
+
+        if value is None:
+            return None
+
+        return datetime.fromtimestamp(value / 1000, tz=UTC)
+
+    def get_next_report(self, sat_id, local_report_name):
+        """Get the report following the given one
+
+        Args:
+            sat_id (str): satellite unit of the report
+            local_report_name (str): the report name to inspect from
+
+        Returns:
+            str: name of the next report, None when it is the last one
+        """
+        search = (
+            self.raw_data.search()
+            .filter("term", satellite_id=sat_id)
+            .filter("range", reportName={"gt": local_report_name})
+            .sort("reportName")
+            .params(size=1)
+        )
+
+        res = list(search.execute())
+
+        return res[0].reportName if res else None
+
+    def get_ais_to_recreate(self, sat_id, report_name, previous_report_name):
+        """AIS datatakes of the previous report that the report deleted
+
+        The consolidation of a report deletes the datatakes from its first
+        observation start, but its first AIS datatake starts hours later: those
+        of the previous report in between are lost. They are the ones to recreate,
+        unless a datatake with their id exists already.
+
+        Args:
+            sat_id (str): satellite unit of the reports
+            report_name (str): the report just consolidated
+            previous_report_name (str): the report before it
+
+        Returns:
+            list(MpProduct): the AIS rows of the previous report to recreate
+        """
+        report_ais_start = self.get_report_min_date(report_name, "AIS")
+
+        # No AIS on this unit (S1A)
+        if report_ais_start is None:
+            return []
+
+        report_start = self.get_report_min_date(report_name)
+
+        # a report consolidated again: the next one owns its own period
+        next_report_name = self.get_next_report(sat_id, report_name)
+        if next_report_name:
+            report_ais_start = min(
+                report_ais_start, self.get_report_min_date(next_report_name)
+            )
+
+        if report_start >= report_ais_start:
+            return []
+
+        mp_products = list(
+            self.raw_data.search()
+            .filter("term", reportName=previous_report_name)
+            .filter("term", instrument_mode="AIS")
+            .filter(
+                "range",
+                **{
+                    self.raw_data_time_start_field_name: {
+                        "gte": report_start,
+                        "lt": report_ais_start,
+                    }
+                },
+            )
+            .params(ignore=404)
+            .scan()
+        )
+
+        if not mp_products:
+            return []
+
+        existing_datatake_ids = {
+            datatake.datatake_id
+            for datatake in self.consolidated_data.search()
+            .filter("term", satellite_unit=sat_id)
+            .filter(
+                "terms",
+                datatake_id=[mp_product.datatake_id for mp_product in mp_products],
+            )
+            .source(["datatake_id"])
+            .params(ignore=404)
+            .scan()
+        }
+
+        self.logger.info(
+            "[%s] - %s AIS datatakes of %s between %s and %s, %s exist already",
+            report_name,
+            len(mp_products),
+            previous_report_name,
+            report_start,
+            report_ais_start,
+            len(existing_datatake_ids),
+        )
+
+        return [
+            mp_product
+            for mp_product in mp_products
+            if mp_product.datatake_id not in existing_datatake_ids
+        ]
 
     def get_nbr_raw_data_for_report(self, local_report_name):
         """Get the number of value for the given report.
