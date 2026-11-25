@@ -185,6 +185,14 @@ class CdsProduct(
         """
         return None
 
+    def get_overlapped_compute_keys(self):
+        """Return the compute keys of the other datatakes the product counts for
+
+        A product attached to one datatake can also count in the completeness of
+        others it overlaps (S1 AI_RAW). Default none.
+        """
+        return []
+
     def data_for_datatake(self):
         """When a datatake is not already create from the mp
         this method allow to create the associate datatake from the product
