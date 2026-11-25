@@ -71,6 +71,55 @@ def compute_total_sensing_product(periods: list[Period]) -> int:
     return sensing
 
 
+def merge_periods(periods: List[Period]) -> List[Period]:
+    """The union of periods, as sorted periods that do not overlap
+
+    Unlike compute_total_sensing_product, a period inside another one is handled.
+    """
+    merged = []
+
+    for period in sorted(periods, key=lambda period: (period.start, period.end)):
+        if merged and period.start <= merged[-1].end:
+            if period.end > merged[-1].end:
+                merged[-1] = Period(merged[-1].start, period.end)
+        else:
+            merged.append(Period(period.start, period.end))
+
+    return merged
+
+
+def compute_uncovered_sensing(
+    periods: List[Period], covering_periods: List[Period]
+) -> float:
+    """Sensing of the periods that the covering periods do not cover
+
+    Args:
+        periods (List[Period]): the periods to measure
+        covering_periods (List[Period]): the periods already counted
+
+    Returns:
+        float: microseconds, as compute_total_sensing_product
+    """
+    covering = merge_periods(covering_periods)
+
+    sensing = 0
+
+    for period in merge_periods(periods):
+        uncovered = (period.end - period.start).total_seconds()
+
+        for cover in covering:
+            overlap = (
+                min(period.end, cover.end) - max(period.start, cover.start)
+            ).total_seconds()
+
+            if overlap > 0:
+                uncovered -= overlap
+
+        sensing += uncovered * 1000000
+
+    return sensing
+
+
 def compute_total_sensing_period(periods: list[Period]) -> Period:
     """Compute sensing period covered by products"""
 

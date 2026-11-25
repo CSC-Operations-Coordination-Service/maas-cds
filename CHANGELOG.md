@@ -1,5 +1,33 @@
 # Changelog
 
+## Version 2.22.2
+
+### AIS datatakes: the AI_RAW of the neighbours count
+
+An AI_RAW is attached to one AIS datatake only, the one sharing the most sensing with
+it (2.22.0). Its neighbours did not count it: a short AIS datatake inside a long AI_RAW
+stayed at 0 %, or without any AI_RAW completeness. In prod, 19 of the 21 S1 AIS
+datatakes below 50 % sensed from 2026-11-11 to 2026-11-24 were covered by the AI_RAW of
+the datatake next to them (S1C 10308001 at 1.44 %, S1D 5443000 at 20 %, S1C 10426001 at
+0 %...).
+
+- The AI_RAW completeness of an AIS datatake also counts the AI_RAW of the same unit and
+  timeliness attached to another datatake, clipped to its observation, for the sensing
+  its own AI_RAW leave uncovered. A datatake never loses completeness, and the
+  neighbours' AI_RAW are neither duplicates nor missing periods of it. The deleted ones
+  count as the brothers do: in `original_completeness` only.
+- COMPUTE_COMPLETENESS computes the AIS datatakes an AI_RAW covers besides its own
+  (`CdsProduct.get_overlapped_compute_keys`).
+- A real gap stays: S1C 10447001 (34.6 %) has no AI_RAW from 08:22:36 to 08:27:53 on
+  2026-11-22.
+
+### Upgrade
+
+- Deploy 2.22.2 on `completeness-s1`, then run `patch_2_22_2` (`--dry-run` first). It
+  computes the AIS datatakes an AI_RAW attached elsewhere overlaps and writes the changed
+  ones. In dry run it still computes them and logs the AI_RAW completeness before and
+  after. No AI_RAW moves, no datatake is created. It can run again.
+
 ## Version 2.22.1
 
 ### patch_2_22_0: the AIS datatakes computed

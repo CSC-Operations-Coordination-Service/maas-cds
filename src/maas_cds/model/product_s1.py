@@ -20,12 +20,45 @@ class CdsProductS1(CdsProduct):
     # the datatake an attached AI_RAW has just left, not stored
     detached_datatake_id = None
 
+    # the other AIS datatakes an attached AI_RAW overlaps, not stored
+    overlapped_datatake_ids = ()
+
     def get_detached_compute_key(self):
         """Compute key of the datatake this AI_RAW has just left, if any"""
         if self.detached_datatake_id is None:
             return None
 
         return (f"{self.satellite_unit}-{self.detached_datatake_id}", self.product_type)
+
+    def get_overlapped_compute_keys(self):
+        """Compute keys of the other AIS datatakes this AI_RAW counts for"""
+        return [
+            (f"{self.satellite_unit}-{datatake_id}", self.product_type)
+            for datatake_id in self.overlapped_datatake_ids
+        ]
+
+    def counts_for_other_ai_datatake(self, datatake):
+        """The AI_RAW counts in the completeness of an AIS datatake it is not
+        attached to
+
+        An AI_RAW is attached to one datatake only, the one sharing the most
+        sensing with it, but its sensing can cover the whole of a short
+        neighbour. Same rule as CdsDatatakeS1.get_ai_raw_of_other_datatakes: same
+        timeliness (once attached, the one of its datatake), sensing overlapping
+        the observation.
+
+        Args:
+            datatake (CdsDatatakeS1): an AIS datatake of the same satellite unit
+
+        Returns:
+            bool: the datatake counts this AI_RAW
+        """
+        return (
+            datatake.datatake_id != self.datatake_id
+            and datatake.timeliness == self.timeliness
+            and datatake.observation_time_start < self.sensing_end_date
+            and datatake.observation_time_stop > self.sensing_start_date
+        )
 
     def has_known_timeliness(self):
         """The AI_RAW timeliness comes from its packet store, when the PRIP gives it"""
@@ -177,9 +210,17 @@ class CdsProductS1(CdsProduct):
                         self.name,
                     )
 
-                datatake_doc = self.get_nearest_datatake(datatake_doc)
+                candidates = datatake_doc
+                datatake_doc = self.get_nearest_datatake(candidates)
 
                 self.attach_to_datatake(datatake_doc)
+
+                if self.product_type == "AI_RAW__0_":
+                    self.overlapped_datatake_ids = tuple(
+                        candidate.datatake_id
+                        for candidate in candidates
+                        if self.counts_for_other_ai_datatake(candidate)
+                    )
 
             else:
                 LOGGER.warning("No datatake for product %s", self.name)

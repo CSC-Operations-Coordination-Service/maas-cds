@@ -7,9 +7,13 @@ from opensearchpy import Q
 
 from maas_cds.model.datatake import CdsDatatake
 from maas_cds.model import CdsProduct
+
+# the one find_brother_products_scan searches with: it has the deletion trace
+from maas_cds.model.product import CdsProduct as CdsProductWithDeletion
 from maas_cds.lib.config import get_good_threshold_config_from_value
 from maas_cds.lib.periodutils import (
     compute_total_sensing_product,
+    compute_uncovered_sensing,
     Period,
     DuplicationCandidate,
 )
@@ -32,6 +36,8 @@ class CdsDatatakeS1(CdsDatatake):
 
     # Take care of this some datatake are near less than 3s
     MATCHING_DELTA_PRODUCTS = 600  # 15 min
+
+    AI_RAW_PRODUCT_TYPE = "AI_RAW__0_"
 
     MINIMUM_PERCENTAGE_OVERLAPPING_AREA = {
         "OCN": {"0": 20, "2024-06-06T13:20:00.000Z": 17},
@@ -149,9 +155,88 @@ class CdsDatatakeS1(CdsDatatake):
         compute_method = self.get_compute_method(product_type)
         value = compute_method(brother_of_datatake_documents)
 
+        if product_type == self.AI_RAW_PRODUCT_TYPE:
+            # only the sensing its own AI_RAW leave uncovered: a datatake never
+            # loses completeness, and the neighbours' AI_RAW are neither
+            # duplicates nor missing periods of this one
+            value += compute_uncovered_sensing(
+                self.get_ai_raw_of_other_datatakes(),
+                [
+                    Period(product.start, product.end)
+                    for product in brother_of_datatake_documents
+                ],
+            )
+
         if related_documents is not None:
             related_documents.extend(brother_of_datatake_documents)
         return value
+
+    def get_ai_raw_of_other_datatakes(self):
+        """Sensing of the AI_RAW attached to another datatake, inside this one
+
+        An AI_RAW is attached to the AIS datatake sharing the most sensing with it
+        (CdsProductS1.get_compute_key). One over several datatakes, or a long one
+        beside a short datatake, also covers its neighbours: they count it too,
+        clipped to their observation. Same rule as
+        CdsProductS1.counts_for_other_ai_datatake.
+
+        Returns:
+            list(Period): sensing periods inside the observation, unsorted
+        """
+        if not self.timeliness:
+            return []
+
+        cache_key = (self.AI_RAW_PRODUCT_TYPE, "other datatakes")
+
+        if (
+            self._brother_products_cache is not None
+            and cache_key in self._brother_products_cache
+        ):
+            products = self._brother_products_cache[cache_key]
+
+        else:
+            completeness_service = self.get_service_for_completeness()
+
+            if not completeness_service:
+                return []
+
+            # deleted products included, filtered below as the brothers are
+            products = list(
+                CdsProductWithDeletion.search()
+                .filter("term", satellite_unit=self.satellite_unit)
+                .filter("term", product_type=self.AI_RAW_PRODUCT_TYPE)
+                .filter("term", timeliness=self.timeliness)
+                .filter("terms", prip_service=completeness_service)
+                .filter("exists", field="prip_id")
+                .filter("range", sensing_start_date={"lt": self.observation_time_stop})
+                .filter("range", sensing_end_date={"gt": self.observation_time_start})
+                .exclude("term", datatake_id=self.datatake_id)
+                .params(ignore=404, ignore_unavailable=True)
+                .scan()
+            )
+
+            if self._brother_products_cache is not None:
+                self._brother_products_cache[cache_key] = products
+
+        periods = []
+
+        for product in products:
+            if not (product.sensing_start_date and product.sensing_end_date):
+                continue
+
+            to_be_deleted, _ = product.deletion_trace()
+
+            # live pass: as the brothers, the deleted products do not count
+            if to_be_deleted and not self._include_deleted_products:
+                continue
+
+            start = max(product.sensing_start_date, self.observation_time_start)
+            end = min(product.sensing_end_date, self.observation_time_stop)
+
+            if start < end:
+                periods.append(Period(start, end))
+
+        return periods
 
     def add_prefix_instrument(self, product_type):
         """Add instrument mode at the given product_type

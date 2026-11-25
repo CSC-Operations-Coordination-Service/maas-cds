@@ -206,6 +206,19 @@ class ComputeCompletenessEngine(DataEngine):
                     detached_key, self.get_datatake_doc(detached_datatake_id)
                 )
 
+            # The other datatakes the product counts for: compute them again
+            for overlapped_key in product_document.get_overlapped_compute_keys():
+                overlapped_datatake_id = overlapped_key[0]
+                if overlapped_datatake_id not in self.local_cache_datatake:
+                    self.load_datatake_doc(
+                        overlapped_datatake_id,
+                        product_document.mission,
+                    )
+
+                self.add_key_to_compute(
+                    overlapped_key, self.get_datatake_doc(overlapped_datatake_id)
+                )
+
     def add_key_to_compute(self, key, datatake_doc):
         """Add a compute key and the ones it impacts to the keys to compute
 
