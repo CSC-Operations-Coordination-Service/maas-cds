@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Quality disclaimers: the known issue of a revised disclaimer
+
+- maas-cds requires maas-engine 3.3.1. With 3.3.0, the consolidation of a quality
+  disclaimer revised in a later month than its first version sent no
+  `update.cds-quality-disclaimer`: the update stays in the index of the first month,
+  and the engine looked for its bulk result under the new month. So
+  `COMPUTE_QUALITY_DISCLAIMER_KNOWN_ISSUE` never ran for it (prod, #422 and #423 on
+  2026-11-25). No code change in maas-cds.
+
 ## Version 2.22.2
 
 ### AIS datatakes: the AI_RAW of the neighbours count
