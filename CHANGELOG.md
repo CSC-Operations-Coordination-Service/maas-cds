@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## Version 2.22.3
 
 ### Quality disclaimers: the known issue of a revised disclaimer
 
