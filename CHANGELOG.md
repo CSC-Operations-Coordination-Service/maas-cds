@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+### ADGS file names: the type of S3 Earth Explorer files, and S2 MPL_TIMELINE
+
+- The S3 parser cut every name at characters 4 to 15, made for the S3 product naming
+  (`S3A_SR_2_PMPSAX_...`). The Earth Explorer files ADGS distributes
+  (`S3C_OPER_MPL__NPPF__<start>_<stop>_0001.EOF`) came out as `OPER_MPL__N`, `OPER_MPL_DN`
+  and `OPER_REP__S`, so the dataflow records `MPL__NPPF_`, `MPL_DNPPF_` and `REP__SUP__`
+  never matched them (prod, 90 days to 2026-11-25: S3A, S3B and S3C). A name with `OPER_`
+  at character 4 now takes the 10 characters after it, as S1 and S2 do; the `AUX` rule
+  still comes first.
+- The S2 parser cut `MPL_TIMELINE` (12 characters) to `MPL_TIMELI`. It is now
+  `MPL_TIMELINE`, as in the S1 parser and the dataflow (TN-58 table 3.3).
+- No patch: documents already stored keep their type until they are consolidated again.
+
 ## Version 2.22.3
 
 ### Quality disclaimers: the known issue of a revised disclaimer
