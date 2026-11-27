@@ -421,3 +421,12 @@ def test_s2_report_product():
         result_dict = extract_data_from_product_name_s2(product_name)
 
         assert result_dict["product_type"] == "OLQC_REPORT"
+
+
+def test_s2_mpl_timeline_product_type():
+    product_name = "S2A_OPER_MPL_TIMELINE_20261126T150000_20261214T180000.tgz"
+
+    result = extract_data_from_product_name_s2(product_name)
+
+    assert result["product_type"] == "MPL_TIMELINE"
+    assert result["satellite_unit"] == "S2A"

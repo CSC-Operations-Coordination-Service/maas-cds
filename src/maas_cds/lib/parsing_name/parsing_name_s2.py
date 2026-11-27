@@ -81,6 +81,10 @@ def extract_data_from_product_name_s2_granule_tile(product_name):
     # Report product
     if re.match(".*_report\\.(xml|tar)", product_name):
         product_type = "OLQC_REPORT"
+    elif "_MPL_TIMELINE_" in product_name:
+        # 12 characters: the 10 of the cut below gave MPL_TIMELI. The dataflow (TN-58
+        # table 3.3) and the S1 parser name it MPL_TIMELINE.
+        product_type = "MPL_TIMELINE"
     else:
         product_type = product_name[9:19]
 

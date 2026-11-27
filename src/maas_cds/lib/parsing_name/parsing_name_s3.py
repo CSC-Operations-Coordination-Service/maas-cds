@@ -43,6 +43,11 @@ def extract_data_from_product_name_s3(product_name):
     if "AUX" in product_type:
         splitted_name = product_name.split("_")
         product_type = f"AUX_{splitted_name[splitted_name.index('AUX')+1]}"
+    elif product_name[4:9] == "OPER_":
+        # Earth Explorer files (S3C_OPER_MPL__NPPF__<start>_<stop>_0001.EOF): the type is
+        # the 10 characters after OPER_, as in S1 and S2. The cut above, made for the S3
+        # product naming, gave OPER_MPL__N, OPER_MPL_DN, OPER_REP__S.
+        product_type = product_name[9:19]
 
     data["product_type"] = product_type
 
