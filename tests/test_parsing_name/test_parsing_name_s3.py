@@ -281,3 +281,22 @@ def test_s3_product_name_abnormal_numbering(product_name, datatake_id):
     assert data["datatake_id"] == datatake_id
     assert data["cycle_number"] == product_name[69:72]
     assert data["relative_orbit_number"] == product_name[73:76]
+
+
+@pytest.mark.parametrize(
+    "product_name, product_type",
+    [
+        ("S3C_OPER_MPL__NPPF__20261127T140000_20261207T170000_0001.EOF", "MPL__NPPF_"),
+        ("S3C_OPER_MPL_DNPPF__20261127T133000_20261207T140000_0003.EOF", "MPL_DNPPF_"),
+        ("S3B_OPER_REP__SUP___20260929T132556_20261001T130000_0001.EOF.zip", "REP__SUP__"),
+        # the AUX rule still wins
+        ("S3A_OPER_AUX_POEORB_POD__20220324T071709_V20220226T215942_20220227T235942_DGNS", "AUX_POEORB"),
+        # the S3 product naming is unchanged
+        ("S3C_GN_1_MANHAX_20260918T080709_20261111T110529_20261126T025736___________________EUM_O_NR_001.SEN3.zip", "GN_1_MANHAX"),
+    ],
+)
+def test_s3_earth_explorer_product_type(product_name, product_type):
+    result = extract_data_from_product_name_s3(product_name)
+
+    assert result["product_type"] == product_type
+    assert result["satellite_unit"] == product_name[:3]
