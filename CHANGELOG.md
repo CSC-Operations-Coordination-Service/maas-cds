@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## Version 2.22.4
 
 ### ADGS file names: the type of S3 Earth Explorer files, and S2 MPL_TIMELINE
 
